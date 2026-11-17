@@ -1,6 +1,6 @@
 [Unit]
 Description=ps5-jb-server manuals host (PS5 User's Guide over HTTPS)
-Documentation=https://github.com/wujiezero/ps5-jb-server
+Documentation=https://github.com/wujiezero/ps5-manage
 After=network-online.target ps5-jb-server.service
 Wants=network-online.target
 

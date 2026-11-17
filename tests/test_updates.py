@@ -33,9 +33,9 @@ class UpdateTests(unittest.TestCase):
         self.payload = b'verified archive bytes'
         self.version = '1.5.0'
         self.asset = f'ps5-jb-server-{self.version}.tar.gz'
-        self.base = f'https://github.com/wujiezero/ps5-jb-server/releases/download/v{self.version}/'
+        self.base = f'https://github.com/wujiezero/ps5-manage/releases/download/v{self.version}/'
         self.release = {'tag_name': 'v1.5.0', 'draft': False, 'prerelease': False,
-                        'html_url': 'https://github.com/wujiezero/ps5-jb-server/releases/tag/v1.5.0',
+                        'html_url': 'https://github.com/wujiezero/ps5-manage/releases/tag/v1.5.0',
                         'body': 'Release notes', 'assets': [
                             {'name': self.asset, 'browser_download_url': self.base + self.asset, 'size': len(self.payload)},
                             {'name': self.asset + '.sha256', 'browser_download_url': self.base + self.asset + '.sha256'}]}
@@ -199,7 +199,7 @@ class UpdateTests(unittest.TestCase):
         opener.open.return_value.__enter__.return_value.read.return_value = b'payload'
         with mock.patch.object(updates.netproxy, 'opener', return_value=opener) as build:
             self.assertEqual(updates.fetch_bytes(
-                'https://api.github.com/repos/wujiezero/ps5-jb-server/releases/latest', 64), b'payload')
+                'https://api.github.com/repos/wujiezero/ps5-manage/releases/latest', 64), b'payload')
         self.assertIs(build.call_args.kwargs['redirect'], updates.GithubRedirect)
 
     def test_source_checkout_cannot_self_update(self):

@@ -1,6 +1,6 @@
 [Unit]
 Description=ps5-jb-server policy, DNS and admin console
-Documentation=https://github.com/wujiezero/ps5-jb-server
+Documentation=https://github.com/wujiezero/ps5-manage
 After=network-online.target nftables.service
 Wants=network-online.target
 Requires=nftables.service

@@ -108,10 +108,10 @@ multiverse，`python3-libarchive-c` 在 universe），但请先用 `--dry-run` �
 
 ```sh
 # 一条命令（推荐）
-curl -fsSL https://raw.githubusercontent.com/wujiezero/ps5-jb-server/main/bootstrap.sh | sudo sh
+curl -fsSL https://raw.githubusercontent.com/wujiezero/ps5-manage/main/bootstrap.sh | sudo sh
 
 # 或者
-git clone https://github.com/wujiezero/ps5-jb-server
+git clone https://github.com/wujiezero/ps5-manage
 cd ps5-jb-server
 sudo ./install.sh
 ```

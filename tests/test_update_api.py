@@ -38,7 +38,7 @@ class UpdateHTTPTests(HTTPTests):
     def test_public_version_does_not_require_github_or_login(self):
         code, _, result = self.request('GET', '/api/version')
         self.assertEqual(code, 200)
-        self.assertEqual(result, {'version': VERSION, 'repository': 'wujiezero/ps5-jb-server', 'ready': True})
+        self.assertEqual(result, {'version': VERSION, 'repository': 'wujiezero/ps5-manage', 'ready': True})
         self.assertEqual(self.app.updates.checked, 0)
 
     def test_version_health_reports_gateway_initialization_failure(self):

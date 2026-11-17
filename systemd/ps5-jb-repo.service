@@ -1,6 +1,6 @@
 [Unit]
 Description=ps5-jb-server payload repository (read-only HTTP)
-Documentation=https://github.com/wujiezero/ps5-jb-server
+Documentation=https://github.com/wujiezero/ps5-manage
 After=network-online.target
 Wants=network-online.target
 

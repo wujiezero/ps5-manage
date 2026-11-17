@@ -48,7 +48,7 @@ function renderUpdates() {
   const release = $('update-release');
   const releaseUrl = str(data?.release_url);
   // Only navigate to the project's HTTPS GitHub release pages.
-  const safeRelease = /^https:\/\/github\.com\/wujiezero\/ps5-jb-server\/releases(?:[/?#]|$)/.test(releaseUrl);
+  const safeRelease = /^https:\/\/github\.com\/wujiezero\/ps5-manage\/releases(?:[/?#]|$)/.test(releaseUrl);
   release.hidden = !safeRelease;
   if (safeRelease) release.setAttribute('href', releaseUrl);
   else release.removeAttribute('href');

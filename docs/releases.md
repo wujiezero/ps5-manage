@@ -2,9 +2,9 @@
 
 ## 版本源
 
-`server/version.py` 的 `VERSION` 是唯一应用版本源，采用 `X.Y.Z` 正式版本（当前 `1.14.1`）。管理服务、插件仓库 HTTP 标识、`GET /api/version` 和页面均使用这个版本。页面侧栏和「设置 → 服务更新」显示当前版本，不需要连接 GitHub。
+`server/version.py` 的 `VERSION` 是唯一应用版本源，采用 `X.Y.Z` 正式版本（当前 `1.14.2`）。管理服务、插件仓库 HTTP 标识、`GET /api/version` 和页面均使用这个版本。页面侧栏和「设置 → 服务更新」显示当前版本，不需要连接 GitHub。
 
-「检查更新」由服务器读取 `wujiezero/ps5-jb-server` 的 GitHub Releases latest API，只接受正式发布，跳过草稿和预发布。不在启动时自动访问 GitHub。未检查、暂无正式发布、检查失败和发现新版会分别显示；检查失败时不能点击更新。
+「检查更新」由服务器读取 `wujiezero/ps5-manage` 的 GitHub Releases latest API，只接受正式发布，跳过草稿和预发布。不在启动时自动访问 GitHub。未检查、暂无正式发布、检查失败和发现新版会分别显示；检查失败时不能点击更新。
 
 ## 发布新版本
 
@@ -90,7 +90,7 @@ python3 scripts/build_release.py --tag v1.4.0 --output /tmp/ps5-release
 推荐使用正式发布的 `v1.4.0` 标签，确保首次升级代码和发布包一致。请在一个新的工作目录执行，避免覆盖原有源码修改：
 
 ```sh
-git clone --branch v1.4.0 --depth 1 https://github.com/wujiezero/ps5-jb-server.git ps5-jb-server-upgrade
+git clone --branch v1.4.0 --depth 1 https://github.com/wujiezero/ps5-manage.git ps5-jb-server-upgrade
 cd ps5-jb-server-upgrade
 ```
 

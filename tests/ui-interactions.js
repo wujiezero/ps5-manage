@@ -457,7 +457,7 @@ test('upload category offers used categories first, defaults after, and creating
 
 const updateStatus = (overrides = {}) => ({
   current: '1.4.0', latest: null, available: false, checked_at: null,
-  release_url: 'https://github.com/wujiezero/ps5-jb-server/releases', notes: '',
+  release_url: 'https://github.com/wujiezero/ps5-manage/releases', notes: '',
   check_error: '', supported: true, unsupported_reason: '', job: null, ...overrides
 });
 const jsonResponse = (data, status = 200) => ({ ok: status < 400, status, json: async () => data });
@@ -472,7 +472,7 @@ function updateFixture(fetch) {
 
 test('public version appears in settings and sidebar before release checks', async () => {
   const requests = [];
-  const ui = updateFixture(async (url) => { requests.push(url); return jsonResponse({ version: '1.4.0', repository: 'wujiezero/ps5-jb-server' }); });
+  const ui = updateFixture(async (url) => { requests.push(url); return jsonResponse({ version: '1.4.0', repository: 'wujiezero/ps5-manage' }); });
   await ui.loadVersion();
   assert.equal(ui.node('update-current').textContent, 'v1.4.0');
   assert.equal(ui.node('sidebar-version').textContent, 'v1.4.0');

@@ -9,7 +9,7 @@
 # Missing system packages (python3 here; openssl, python3-dnspython, nftables…
 # in the Python installer) are installed automatically unless --no-deps is given.
 #
-# One-liner: curl -fsSL https://raw.githubusercontent.com/wujiezero/ps5-jb-server/main/bootstrap.sh | sudo sh
+# One-liner: curl -fsSL https://raw.githubusercontent.com/wujiezero/ps5-manage/main/bootstrap.sh | sudo sh
 set -eu
 here=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 

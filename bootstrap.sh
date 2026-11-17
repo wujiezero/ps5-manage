@@ -1,7 +1,7 @@
 #!/bin/sh
 # Fetch ps5-jb-server and run the installer.
 #
-#   curl -fsSL https://raw.githubusercontent.com/wujiezero/ps5-jb-server/main/bootstrap.sh | sudo sh
+#   curl -fsSL https://raw.githubusercontent.com/wujiezero/ps5-manage/main/bootstrap.sh | sudo sh
 #   curl -fsSL ... | sudo sh -s -- --dry-run
 #
 # git, python3 and CA certificates are installed automatically when missing
@@ -11,7 +11,7 @@
 set -eu
 ref=${PS5JB_REF:-main}
 dir=${PS5JB_DIR:-/opt/ps5-jb-server-src}
-repo=https://github.com/wujiezero/ps5-jb-server
+repo=https://github.com/wujiezero/ps5-manage
 
 if [ "$(id -u)" -ne 0 ]; then
     echo "请用 root 运行（sudo sh）" >&2
