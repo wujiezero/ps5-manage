@@ -212,20 +212,22 @@ PS5 的待机即休息模式（黄灯）：插件留在内存里，唤醒后不�
 
 本仓库**不打包**任何插件二进制，也不打包上游的用户手册宿主脚本：
 
-- 插件：`payloads.json` 只记录清单、镜像地址与 SHA-256，安装时由 `scripts/fetch_payloads.py` 自动下载。
-  个别插件下载失败（网络、HTTP、校验和不符）只记录原因、不中断安装，结束时汇总成功与失败数量；
+- 插件：`payloads.json` 只记录清单、下载地址与 SHA-256，安装时由 `scripts/fetch_payloads.py` 自动下载。
+  每条优先从项目自己的 Release（`url`）取，失败再试镜像副本（`fallback_urls`，通常是
+  `ps5-payloads-mirror`），只有校验和一致的文件才会写进仓库；个别插件下载失败（网络、HTTP、校验和不符）
+  只记录原因、不中断安装，结束时汇总成功与失败数量；
   仓库为空时会告警，重跑同一条命令即可补齐：
   `python3 scripts/fetch_payloads.py --repo-dir /srv/ps5-jb-server --base-url http://<本机>:8080/payloads/`
   （清单若使用相对地址，可加 `--download-base <镜像前缀>`）。
 - 用户手册宿主：上游 [itsPLK/ps5-webkit-autoloader](https://github.com/itsPLK/ps5-webkit-autoloader)
-  v0.7.1（**GPL-3.0**）的 `host.py`，安装时按 `components.json` 下载并校验 SHA-256；
+  v0.8.1（**GPL-3.0**）的 `host.py`，安装时按 `components.json` 下载并校验 SHA-256；
   也可用 `--no-manuals-host` 跳过。
 - 域名分类规则集：由 [v2fly/domain-list-community](https://github.com/v2fly/domain-list-community)（MIT）
   编译而来，构建脚本见 `scripts/build_rulesets.py`。
 - 游戏名称库 `titledb/titles.json`：由 [andshrew/PlayStation-Titles](https://github.com/andshrew/PlayStation-Titles)（MIT）
   编译而来，文件页与 NAS 列表据此把 `CUSA…`/`PPSA…` 显示为游戏名；构建脚本 `scripts/build_titles.py`，
   数据来源与更新方法见 [`docs/file-manager.md`](docs/file-manager.md#游戏名称标题-id--游戏名)。
-- 唤醒 / 待机（可选）：[PS5Upload](https://github.com/phantomptr/ps5upload) 引擎 v12.4.2（**GPL-3.0**），
+- 唤醒 / 待机（可选）：[PS5Upload](https://github.com/phantomptr/ps5upload) 引擎 v12.6.14（**GPL-3.0**），
   作为独立进程运行、由本服务通过本机 HTTP 调用；安装器按 `components.json` 下载并校验 SHA-256，不随仓库分发。
 - 自动加载格式与 [itsPLK/ps5-payload-manager](https://github.com/itsPLK/ps5-payload-manager) 的
   `AUTOLOAD_LIST`（`local/<槽位>`、`!<毫秒>`）保持一致。

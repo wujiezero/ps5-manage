@@ -1,183 +1,231 @@
 {
   "schema": 1,
-  "generated_at": "2026-11-11",
+  "generated_at": "2026-11-20",
   "note": "Payload binaries are third-party projects; this manifest only records download URLs and SHA-256. Nothing is redistributed.",
   "payloads": [
     {
       "id": "etahen",
       "name": "etaHEN",
       "filename": "etaHEN_2.5B.bin",
-      "url": "https://github.com/itsPLK/ps5-payloads-mirror/releases/download/payloads-mirror/etaHEN_2.5B.bin",
+      "url": "https://github.com/etaHEN/etaHEN/releases/download/2.5B/etaHEN-2.5B.bin",
       "version": "2.5B",
       "category": "Loader",
       "description": "越狱后必备的插件框架：内置 kstuff、ftp、作弊、金手指等，面板可管理。",
       "author": "etaHEN",
-      "checksum": "4845cac45095361b8983b14d6690622183b0dcfbf6d7fda16e161aa91ff0531e"
+      "checksum": "4845cac45095361b8983b14d6690622183b0dcfbf6d7fda16e161aa91ff0531e",
+      "fallback_urls": [
+        "https://github.com/itsPLK/ps5-payloads-mirror/releases/download/payloads-mirror/etaHEN_2.5B.bin"
+      ]
     },
     {
       "id": "kstuff-lite",
       "name": "kstuff-lite",
       "filename": "kstuff-lite_v1.11.elf",
-      "url": "https://github.com/itsPLK/ps5-payloads-mirror/releases/download/payloads-mirror/kstuff-lite_v1.11.elf",
+      "url": "https://github.com/EchoStretch/kstuff-lite/releases/download/v1.11/kstuff.elf",
       "version": "v1.11",
       "category": "Kernel",
       "description": "精简版内核态 kstuff，体积小、启动快。",
       "author": "EchoStretch",
-      "checksum": "ab9a6cb4d3b1daf139d4d646e402b1cf569071acd64599c936d7a3a6164dc779"
+      "checksum": "ab9a6cb4d3b1daf139d4d646e402b1cf569071acd64599c936d7a3a6164dc779",
+      "fallback_urls": [
+        "https://github.com/itsPLK/ps5-payloads-mirror/releases/download/payloads-mirror/kstuff-lite_v1.11.elf"
+      ]
     },
     {
       "id": "elfldr",
       "name": "elfldr",
-      "filename": "elfldr_v0.27.elf",
-      "url": "https://github.com/itsPLK/ps5-payloads-mirror/releases/download/payloads-mirror/elfldr_v0.27.elf",
-      "version": "v0.27",
+      "filename": "elfldr_v0.28.elf",
+      "url": "https://github.com/ps5-payload-dev/elfldr/releases/download/v0.28/elfldr-ps5.elf",
+      "version": "v0.28",
       "category": "Loader",
       "description": "ELF 加载器（监听 9021），把 ELF 注入 PS5 进程的底层工具。",
       "author": "ps5-payload-dev",
-      "checksum": "82f6227610172c98bad6efe68219fc93a10027035991f47eb4b75532d023407d"
+      "checksum": "66968bae6159d8fb06125fcd43fb99cf64d6bfdf730c70f37a6f5d056ff63458",
+      "fallback_urls": [
+        "https://github.com/itsPLK/ps5-payloads-mirror/releases/download/payloads-mirror/elfldr_v0.28.elf"
+      ]
     },
     {
       "id": "pldmgr",
       "name": "Payload Manager",
       "filename": "pldmgr_v0.6.3.elf",
-      "url": "https://github.com/itsPLK/ps5-payloads-mirror/releases/download/payloads-mirror/pldmgr_v0.6.3.elf",
+      "url": "https://github.com/itsPLK/ps5-payload-manager/releases/download/v0.6.3/pldmgr_v0.6.3.elf",
       "version": "v0.6.3",
       "category": "Loader",
       "description": "Payload Manager 最新版面板（比内置版新，可管理仓库/自启动/收藏）。",
       "author": "itsPLK",
-      "checksum": "2a42054fd9725e1d9595ff4add95abc30e5b49446fcdcb96c06775a376a841c4"
+      "checksum": "2a42054fd9725e1d9595ff4add95abc30e5b49446fcdcb96c06775a376a841c4",
+      "fallback_urls": [
+        "https://github.com/itsPLK/ps5-payloads-mirror/releases/download/payloads-mirror/pldmgr_v0.6.3.elf"
+      ]
     },
     {
       "id": "ftpsrv",
       "name": "FTP Server",
       "filename": "ftpsrv_v0.22.elf",
-      "url": "https://github.com/itsPLK/ps5-payloads-mirror/releases/download/payloads-mirror/ftpsrv_v0.22.elf",
+      "url": "https://github.com/ps5-payload-dev/ftpsrv/releases/download/v0.22/ftpsrv-ps5.elf",
       "version": "v0.22",
       "category": "Networking",
       "description": "FTP 服务器，端口 2121，从电脑传文件/装插件到 PS5 的主通道。",
       "author": "ps5-payload-dev",
-      "checksum": "41148c2c1cad1ea9e7cfde03e389fa918e3338e896d06167346de09adbdc8757"
+      "checksum": "41148c2c1cad1ea9e7cfde03e389fa918e3338e896d06167346de09adbdc8757",
+      "fallback_urls": [
+        "https://github.com/itsPLK/ps5-payloads-mirror/releases/download/payloads-mirror/ftpsrv_v0.22.elf"
+      ]
     },
     {
       "id": "ftpsrv-drakmor",
       "name": "FTP Server (drakmor)",
       "filename": "ftpsrv-drakmor_1.16-ng-stable.elf",
-      "url": "https://github.com/itsPLK/ps5-payloads-mirror/releases/download/payloads-mirror/ftpsrv-drakmor_1.16-ng-stable.elf",
+      "url": "https://github.com/drakmor/ftpsrv/releases/download/1.16-ng-stable/ftpsrv-ps5.elf",
       "version": "1.16-ng-stable",
       "category": "Networking",
       "description": "另一个维护分支的 FTP 服务器，兼容性好。",
       "author": "drakmor",
-      "checksum": "f19ae469b25453a7a4af4529527521d31f143100f18a2c6839666e7121c8bd32"
+      "checksum": "f19ae469b25453a7a4af4529527521d31f143100f18a2c6839666e7121c8bd32",
+      "fallback_urls": [
+        "https://github.com/itsPLK/ps5-payloads-mirror/releases/download/payloads-mirror/ftpsrv-drakmor_1.16-ng-stable.elf"
+      ]
     },
     {
       "id": "websrv",
       "name": "Web Server",
       "filename": "websrv_v0.34.elf",
-      "url": "https://github.com/itsPLK/ps5-payloads-mirror/releases/download/payloads-mirror/websrv_v0.34.elf",
+      "url": "https://github.com/ps5-payload-dev/websrv/releases/download/v0.34/websrv-ps5.elf",
       "version": "v0.34",
       "category": "Networking",
       "description": "在 PS5 上起 HTTP/DB 后台服务，供 cheat/封面等工具调用。",
       "author": "ps5-payload-dev",
-      "checksum": "54730c867c6e1148536fdcb370e63a7762d989ea87b62488ad4caff64d43f263"
+      "checksum": "54730c867c6e1148536fdcb370e63a7762d989ea87b62488ad4caff64d43f263",
+      "fallback_urls": [
+        "https://github.com/itsPLK/ps5-payloads-mirror/releases/download/payloads-mirror/websrv_v0.34.elf"
+      ]
     },
     {
       "id": "shsrv",
       "name": "Shell Server",
       "filename": "shsrv_v0.20.elf",
-      "url": "https://github.com/itsPLK/ps5-payloads-mirror/releases/download/payloads-mirror/shsrv_v0.20.elf",
+      "url": "https://github.com/ps5-payload-dev/shsrv/releases/download/v0.20/shsrv-ps5.elf",
       "version": "v0.20",
       "category": "Networking",
       "description": "远程 shell（端口 9020），命令行操作 PS5 文件系统。",
       "author": "ps5-payload-dev",
-      "checksum": "fa4ccb2587bb61be317df0d001f668b17ebf9b4aafad87acf691b1fb8da0bd2d"
+      "checksum": "fa4ccb2587bb61be317df0d001f668b17ebf9b4aafad87acf691b1fb8da0bd2d",
+      "fallback_urls": [
+        "https://github.com/itsPLK/ps5-payloads-mirror/releases/download/payloads-mirror/shsrv_v0.20.elf"
+      ]
     },
     {
       "id": "klogsrv",
       "name": "Kernel Log Server",
       "filename": "klogsrv_v0.9.elf",
-      "url": "https://github.com/itsPLK/ps5-payloads-mirror/releases/download/payloads-mirror/klogsrv_v0.9.elf",
+      "url": "https://github.com/ps5-payload-dev/klogsrv/releases/download/v0.9/klogsrv-ps5.elf",
       "version": "v0.9",
       "category": "Diagnostics",
       "description": "把内核日志转发到网络，排查崩溃/失败时最有用。",
       "author": "ps5-payload-dev",
-      "checksum": "e828ec144231f81547cb58bc7d2c396fa984be0c2295f31364b58017816dcceb"
+      "checksum": "e828ec144231f81547cb58bc7d2c396fa984be0c2295f31364b58017816dcceb",
+      "fallback_urls": [
+        "https://github.com/itsPLK/ps5-payloads-mirror/releases/download/payloads-mirror/klogsrv_v0.9.elf"
+      ]
     },
     {
       "id": "ps5upload",
       "name": "ps5upload",
-      "filename": "ps5upload_v12.4.2.elf",
-      "url": "https://github.com/itsPLK/ps5-payloads-mirror/releases/download/payloads-mirror/ps5upload_v12.4.2.elf",
-      "version": "v12.4.2",
+      "filename": "ps5upload_v12.6.14.elf",
+      "url": "https://github.com/phantomptr/ps5upload/releases/download/v12.6.14/ps5upload-12.6.14.elf",
+      "version": "v12.6.14",
       "category": "Files",
       "description": "带 Web 界面的上传/管理工具，手机电脑都能用。",
       "author": "seregonwar",
-      "checksum": "06dbb9022bcb71cb95178c29c9da39ae6e60d17becf9c1ff8938c98bd15fa8ef"
+      "checksum": "416e5791c488bc92eeb7d573ed7b798183416aae2d42e5212f3a3faf8bbc707f",
+      "fallback_urls": [
+        "https://github.com/itsPLK/ps5-payloads-mirror/releases/download/payloads-mirror/ps5upload_v12.6.14.elf"
+      ]
     },
     {
       "id": "pkg-manager",
       "name": "PKG Manager",
       "filename": "PKG-Manager_v1.5.1.elf",
-      "url": "https://github.com/itsPLK/ps5-payloads-mirror/releases/download/payloads-mirror/PKG-Manager_v1.5.1.elf",
+      "url": "https://github.com/itsPLK/ps5-pkg-manager/releases/download/v1.5.1/pkg-manager_v1.5.1.elf",
       "version": "v1.5.1",
       "category": "Files",
       "description": "管理/安装 PKG，查看已装内容与更新。",
       "author": "ps5-payload-dev",
-      "checksum": "82e3548edcc41419b644482cccaef65689334fc0315dc20247f48b90bf182dca"
+      "checksum": "82e3548edcc41419b644482cccaef65689334fc0315dc20247f48b90bf182dca",
+      "fallback_urls": [
+        "https://github.com/itsPLK/ps5-payloads-mirror/releases/download/payloads-mirror/PKG-Manager_v1.5.1.elf"
+      ]
     },
     {
       "id": "app-dumper",
       "name": "App Dumper",
       "filename": "ps5-app-dumper_v2.10.elf",
-      "url": "https://github.com/itsPLK/ps5-payloads-mirror/releases/download/payloads-mirror/ps5-app-dumper_v2.10.elf",
+      "url": "https://github.com/EchoStretch/ps5-app-dumper/releases/download/v2.10/ps5-app-dumper_v2.10.elf",
       "version": "v2.10",
       "category": "Files",
       "description": "把已安装游戏/应用 dump 成文件。",
       "author": "ps5-payload-dev",
-      "checksum": "c850f1df6f2787824d6ddeeed69ce4144e00569b32135973401c2985cfb0345b"
+      "checksum": "c850f1df6f2787824d6ddeeed69ce4144e00569b32135973401c2985cfb0345b",
+      "fallback_urls": [
+        "https://github.com/itsPLK/ps5-payloads-mirror/releases/download/payloads-mirror/ps5-app-dumper_v2.10.elf"
+      ]
     },
     {
       "id": "ps4mount",
       "name": "PS4 Mount",
-      "filename": "ps4mount_v0.7.3.elf",
-      "url": "https://github.com/itsPLK/ps5-payloads-mirror/releases/download/payloads-mirror/ps4mount_v0.7.3.elf",
-      "version": "v0.7.3",
+      "filename": "ps4mount_v0.8.0.elf",
+      "url": "https://github.com/gasb07/ps4mount/releases/download/v0.8.0/ps4mount.elf",
+      "version": "v0.8.0",
       "category": "Files",
       "description": "挂载 PS4 游戏格式，让 PS5 直接读。",
       "author": "ps5-payload-dev",
-      "checksum": "f107a443aa83196744deeefe748a7f09d8b8b340a30df1b232535b6ee0f15127"
+      "checksum": "2f7d548cdb5c2beba631299fa9f1e5c18cca65c648443f9f36ffab9940a6a5ac",
+      "fallback_urls": [
+        "https://github.com/itsPLK/ps5-payloads-mirror/releases/download/payloads-mirror/ps4mount_v0.8.0.elf"
+      ]
     },
     {
       "id": "date-time-sync",
       "name": "Date/Time Sync",
       "filename": "ps5-date-time-sync_v1.0.0.elf",
-      "url": "https://github.com/itsPLK/ps5-payloads-mirror/releases/download/payloads-mirror/ps5-date-time-sync_v1.0.0.elf",
+      "url": "https://github.com/kerrdec97/ps5-date-time-sync/releases/download/v1.0.0/ps5-date-time-sync.elf",
       "version": "v1.0.0",
       "category": "System",
       "description": "无外网时同步系统时间（越狱环境常需要）。",
       "author": "ps5-payload-dev",
-      "checksum": "91806229803845930b2173174e1afeadf509e4c171f6396788f929558fad6849"
+      "checksum": "91806229803845930b2173174e1afeadf509e4c171f6396788f929558fad6849",
+      "fallback_urls": [
+        "https://github.com/itsPLK/ps5-payloads-mirror/releases/download/payloads-mirror/ps5-date-time-sync_v1.0.0.elf"
+      ]
     },
     {
       "id": "linux-loader",
       "name": "Linux Loader",
       "filename": "ps5-linux-loader_v2.5.elf",
-      "url": "https://github.com/itsPLK/ps5-payloads-mirror/releases/download/payloads-mirror/ps5-linux-loader_v2.5.elf",
+      "url": "https://github.com/ps5-linux/ps5-linux-loader/releases/download/v2.5/ps5-linux-loader.elf",
       "version": "v2.5",
       "category": "System",
       "description": "加载 PS5 Linux 引导。",
       "author": "ps5-payload-dev",
-      "checksum": "9fc48733077145d1d204a4c9cdb879baaab1e711a604dd73af0dd4a807d6bc49"
+      "checksum": "9fc48733077145d1d204a4c9cdb879baaab1e711a604dd73af0dd4a807d6bc49",
+      "fallback_urls": [
+        "https://github.com/itsPLK/ps5-payloads-mirror/releases/download/payloads-mirror/ps5-linux-loader_v2.5.elf"
+      ]
     },
     {
       "id": "exporter",
       "name": "Exporter",
       "filename": "ps5-exporter_v0.3.1.elf",
-      "url": "https://github.com/itsPLK/ps5-payloads-mirror/releases/download/payloads-mirror/ps5-exporter_v0.3.1.elf",
+      "url": "https://github.com/Marice/ps5-exporter/releases/download/v0.3.1/ps5-exporter.elf",
       "version": "v0.3.1",
       "category": "System",
       "description": "导出系统信息/注册表等诊断数据。",
       "author": "ps5-payload-dev",
-      "checksum": "ff0c36333ba44da20a05039f148b644225edfeeac80e7c12006f767681739862"
+      "checksum": "ff0c36333ba44da20a05039f148b644225edfeeac80e7c12006f767681739862",
+      "fallback_urls": [
+        "https://github.com/itsPLK/ps5-payloads-mirror/releases/download/payloads-mirror/ps5-exporter_v0.3.1.elf"
+      ]
     },
     {
       "id": "nanodns",
@@ -193,24 +241,30 @@
     {
       "id": "web-file-manager",
       "name": "Web File Manager",
-      "filename": "ps5-web-file-manager_v1.13-rc2.elf",
-      "url": "https://github.com/itsPLK/ps5-payloads-mirror/releases/download/payloads-mirror/ps5-web-file-manager_v1.13-rc2.elf",
-      "version": "v1.13-rc2",
+      "filename": "ps5-web-file-manager_v1.14.elf",
+      "url": "https://github.com/owendswang/ps5-web-file-manager/releases/download/v1.14/web-file-mgr-v1.14.elf",
+      "version": "v1.14",
       "category": "Files",
       "description": "浏览器里管理 PS5 文件。",
       "author": "ps5-payload-dev",
-      "checksum": "91f8e7f52183ce624651b779016bb48cbe7adaad278833a1191ad2e8fc6fbfe3"
+      "checksum": "8493c0bd11d77f9cce4b6c93564ffcae7185a5b530ecf856a768519c2514e231",
+      "fallback_urls": [
+        "https://github.com/itsPLK/ps5-payloads-mirror/releases/download/payloads-mirror/ps5-web-file-manager_v1.14.elf"
+      ]
     },
     {
       "id": "webkit-installer",
       "name": "WebKit Autoloader Installer",
-      "filename": "WebKit-Autoloader-Installer_v0.7.1.elf",
-      "url": "https://github.com/itsPLK/ps5-payloads-mirror/releases/download/payloads-mirror/WebKit-Autoloader-Installer_v0.7.1.elf",
-      "version": "v0.7.1",
+      "filename": "WebKit-Autoloader-Installer_v0.8.1.elf",
+      "url": "https://github.com/itsPLK/ps5-webkit-autoloader/releases/download/v0.8.1/webkit-autoloader-installer_v0.8.1.elf",
+      "fallback_urls": [
+        "https://github.com/itsPLK/ps5-payloads-mirror/releases/download/payloads-mirror/WebKit-Autoloader-Installer_v0.8.1.elf"
+      ],
+      "version": "v0.8.1",
       "category": "Loader",
       "description": "把离线站点正式写进主机并重建主界面图标（越狱后再跑一次更稳）。",
       "author": "itsPLK",
-      "checksum": "df60538570e9811bb0b4652a3fdb3e1a35ec3455b3ca7c80edc4140c5bb47ce2"
+      "checksum": "1144f939f62c9d80a73aafb576ba5e7091966f1e48491d19bd97ec825934145c"
     }
   ]
 }

@@ -260,6 +260,43 @@ class PluginUpdatesTests(unittest.TestCase):
         with self.assertRaisesRegex(PluginUpdateError, '先检查'):
             self.updates.apply('ftpsrv_v0.21.elf')
 
+    def release_entry(self, project_url):
+        """The mirror index also says where the mirror copied the file from."""
+        return [{**index_entry('ftpsrv', 'ftpsrv_v0.22.elf', self.new_ftp, 'v0.22'),
+                 'source_direct': project_url}]
+
+    def test_apply_prefers_the_project_release_over_the_mirror_copy(self):
+        project = 'https://upstream.test/ftpsrv-ps5.elf'
+        self.entries = self.release_entry(project)
+        self.publish_index()
+        self.opener.files[project] = self.new_ftp
+        self.updates.check()
+        result = self.updates.apply('ftpsrv_v0.21.elf')
+        self.assertEqual(result['filename'], 'ftpsrv_v0.22.elf')
+        self.assertIn(project, self.opener.requests)
+        self.assertNotIn('https://mirror.test/dl/ftpsrv_v0.22.elf', self.opener.requests,
+                         'the mirror is only a fallback')
+
+    def test_apply_falls_back_to_the_mirror_when_the_release_is_unreachable(self):
+        project = 'https://upstream.test/gone.elf'
+        self.entries = self.release_entry(project)
+        self.publish_index()
+        self.updates.check()
+        result = self.updates.apply('ftpsrv_v0.21.elf')
+        self.assertEqual(result['filename'], 'ftpsrv_v0.22.elf')
+        self.assertIn(project, self.opener.requests, 'the preferred source was tried first')
+        self.assertIn('https://mirror.test/dl/ftpsrv_v0.22.elf', self.opener.requests)
+
+    def test_apply_ignores_a_release_whose_bytes_do_not_match_the_checksum(self):
+        project = 'https://upstream.test/stale.elf'
+        self.entries = self.release_entry(project)
+        self.publish_index()
+        self.opener.files[project] = b'rebuilt-and-different'
+        self.updates.check()
+        result = self.updates.apply('ftpsrv_v0.21.elf')
+        self.assertEqual(result['filename'], 'ftpsrv_v0.22.elf')
+        self.assertIn('https://mirror.test/dl/ftpsrv_v0.22.elf', self.opener.requests)
+
 
 if __name__ == '__main__':
     unittest.main()

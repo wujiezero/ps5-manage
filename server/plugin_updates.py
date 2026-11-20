@@ -62,7 +62,14 @@ def _clean_entry(raw):
             and _FILENAME.match(filename) and isinstance(url, str)
             and urllib.parse.urlsplit(url).scheme == 'https' and _DIGEST.match(checksum)):
         return None
+    # The index also names where the build really comes from (the project's own
+    # release). It is preferred over the mirror copy: same bytes, same checksum,
+    # but it is the source the mirror itself syncs from.
+    direct = str(raw.get('source_direct') or '')
+    if urllib.parse.urlsplit(direct).scheme != 'https':
+        direct = ''
     return {'name': name.strip()[:120], 'filename': filename, 'url': url, 'checksum': checksum,
+            'source_direct': direct,
             'version': str(raw.get('version') or '')[:32],
             'last_update': str(raw.get('last_update') or '')[:32],
             'source': str(raw.get('source') or '')[:300],
@@ -251,6 +258,42 @@ class PluginUpdates:
 
     # ---------------------------------------------------------------- apply
 
+    @staticmethod
+    def _release_urls(entry):
+        """Download candidates for one index entry, preferred first.
+
+        The index copies the project's own release to the mirror: `source_direct`
+        is where it was copied from and `url` is the mirror copy. Both are meant
+        to serve the same bytes, which the checksum then proves, so a mirror that
+        is behind or an upstream that moved only costs the other source.
+        """
+        urls = []
+        for url in (entry.get('source_direct') or '', entry['url']):
+            if url and url not in urls:
+                urls.append(url)
+        return urls
+
+    def _release_bytes(self, entry, filename):
+        """Verified bytes of one upstream build, trying every source in order."""
+        failures = []
+        for url in self._release_urls(entry):
+            self._report(filename=filename, name=entry['name'], version=entry['version'],
+                         stage='downloading', done=0, total=None, started=time.time(), source=url)
+            try:
+                data = self._fetch(url, self.repo.MAX_UPLOAD, self.download_timeout,
+                                   progress=lambda done, total: self._report(done=done, total=total))
+            except PluginUpdateError as exc:      # unreachable, throttled, too large
+                failures.append(str(exc))
+                continue
+            self._report(stage='verifying', done=len(data), total=len(data))
+            if hashlib.sha256(data).hexdigest() != entry['checksum']:
+                failures.append(f'{url} 的内容与索引校验和不符')
+                continue
+            return data
+        if failures and all('校验和' in reason for reason in failures):
+            raise PluginUpdateError('下载的文件校验和与上游索引不符，未写入仓库（上游可能刚更新，请重新检查）')
+        raise PluginUpdateError('无法下载上游文件：' + '；'.join(failures))
+
     def apply(self, filename):
         """Download the upstream build for one plugin and publish it."""
         if not self.applying.acquire(blocking=False):
@@ -274,13 +317,7 @@ class PluginUpdates:
                 raise PluginUpdateError(
                     f'上游最新版 {entry["filename"]} 已由仓库里的「{owner.get("name") or owner["filename"]}」'
                     f'（{owner["filename"]}）提供，这一条是同一插件的重复条目，可以删除')
-            self._report(filename=filename, name=entry['name'], version=entry['version'],
-                         stage='downloading', done=0, total=None, started=time.time())
-            data = self._fetch(entry['url'], self.repo.MAX_UPLOAD, self.download_timeout,
-                               progress=lambda done, total: self._report(done=done, total=total))
-            self._report(stage='verifying', done=len(data), total=len(data))
-            if hashlib.sha256(data).hexdigest() != entry['checksum']:
-                raise PluginUpdateError('下载的文件校验和与上游索引不符，未写入仓库（上游可能刚更新，请重新检查）')
+            data = self._release_bytes(entry, filename)
             self._report(stage='publishing')
             updated = self.repo.upgrade(filename, entry['filename'], data, version=entry['version'],
                                         last_update=entry['last_update'], upstream=entry['name'])

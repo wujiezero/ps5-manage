@@ -4,6 +4,12 @@
 Binaries are third-party projects; this script never bundles them. Each item is
 fetched once, verified against its SHA-256, and skipped when already correct.
 
+An item names its preferred source in ``url`` and may list backups in
+``fallback_urls`` (the usual layout is the upstream release first and the
+mirror second). Sources are tried in order and the file is kept only when it
+matches the checksum, so a mirror that lags behind or an upstream outage only
+costs the other source.
+
 A failing payload never aborts the run: the reason is printed, the rest of the
 manifest continues, and repo.json is written with whatever succeeded. The
 installer treats this step as best effort, so a flaky upstream or a mirror
@@ -40,27 +46,69 @@ def resolve_url(item, download_base=''):
     return urllib.parse.urljoin(download_base.rstrip('/') + '/', url)
 
 
+# Sources the manifest may name: `url` is the preferred one and `fallback_urls`
+# (or a single `fallback_url`) are tried in order when it fails. The usual layout
+# is the upstream release first and the mirror second, so a mirror that has not
+# synced yet — or an upstream outage — only costs the other source.
+FALLBACK_FIELDS = ('fallback_urls', 'fallback_url')
+
+
+def source_urls(item, download_base=''):
+    """Download candidates for one manifest item, preferred first, de-duplicated."""
+    raw = [item.get('url')]
+    for field in FALLBACK_FIELDS:
+        value = item.get(field)
+        if isinstance(value, str):
+            raw.append(value)
+        elif isinstance(value, (list, tuple)):
+            raw.extend(value)
+    urls = []
+    for entry in raw:
+        if not isinstance(entry, str) or not entry:
+            continue
+        url = resolve_url({'url': entry}, download_base)
+        if url not in urls:
+            urls.append(url)
+    return urls
+
+
 def download_item(item, payload_dir, download_base='', opener=None, timeout=120):
-    """Store one payload, returning ('缓存'|'下载', size). Raises on any failure."""
+    """Store one payload, returning ('缓存'|'下载', size).
+
+    Every configured source is tried in order; the file is only kept once it
+    matches the manifest checksum, so a source that serves something else costs
+    a retry rather than a broken repository entry. Raises when none works, with
+    each source's reason.
+    """
     filename = item['filename']
     target = payload_dir / filename
     checksum = item.get('checksum') or ''
     if checksum and target.is_file() and sha256_path(target) == checksum:
         return '缓存', target.stat().st_size
-    url = resolve_url(item, download_base)
     open_url = opener or urllib.request.urlopen
-    request = urllib.request.Request(url, headers=UA)
     temporary = payload_dir / ('.' + filename + '.part')
-    try:
-        with open_url(request, timeout=timeout) as response, temporary.open('wb') as handle:
-            for chunk in iter(lambda: response.read(1 << 20), b''):
-                handle.write(chunk)
-        if checksum and sha256_path(temporary) != checksum:
-            raise ValueError('校验和不匹配（上游文件可能已更新）')
-        os.replace(temporary, target)
-        return '下载', target.stat().st_size
-    finally:
-        temporary.unlink(missing_ok=True)
+    urls = source_urls(item, download_base)
+    if not urls:
+        raise ValueError('清单里没有可用的下载地址')
+    failures = []
+    for position, url in enumerate(urls):
+        request = urllib.request.Request(url, headers=UA)
+        try:
+            with open_url(request, timeout=timeout) as response, temporary.open('wb') as handle:
+                for chunk in iter(lambda: response.read(1 << 20), b''):
+                    handle.write(chunk)
+            if checksum and sha256_path(temporary) != checksum:
+                raise ValueError('校验和不匹配（上游文件可能已更新）')
+            os.replace(temporary, target)
+            if position:
+                print(f'  首选用源不可用，改用备用源 {url}')
+            return '下载', target.stat().st_size
+        except Exception as exc:  # noqa: BLE001 - the next source may still work
+            reason = str(exc) or type(exc).__name__
+            failures.append(f'{reason}（{url}）')
+        finally:
+            temporary.unlink(missing_ok=True)
+    raise ValueError('所有下载源都失败：' + '；'.join(failures))
 
 
 def write_catalog(repo_dir, catalog, name='家庭离线仓库'):
@@ -73,6 +121,14 @@ def write_catalog(repo_dir, catalog, name='家庭离线仓库'):
 
 SEED_FILE = 'ps5-payload-repository'
 USER_FIELDS = ('name', 'category', 'description', 'author', 'source', 'upstream')
+# Manifest-only hints: they steer the downloader and mean nothing to Payload
+# Manager, so they stay out of the published repo.json.
+PRIVATE_FIELDS = ('fallback_url', 'fallback_urls')
+
+
+def published(item):
+    """The entry as the PS5 sees it, without download-only fields."""
+    return {key: value for key, value in item.items() if key not in PRIVATE_FIELDS}
 
 
 def existing_catalog(repo_dir):
@@ -125,7 +181,7 @@ def run(manifest, repo_dir, base_url, only=(), download_base='', opener=None):
                 catalog.append({**known, 'url': base + known['filename']})
             continue
         edited = {key: known[key] for key in USER_FIELDS if known and known.get(key)}
-        catalog.append({**item, **edited, 'url': base + item['filename'], 'size': size})
+        catalog.append({**published(item), **edited, 'url': base + item['filename'], 'size': size})
         ready += 1
         print(f'  {state:4} {item["filename"]} ({size} bytes)')
     kept = [old for old in previous if id(old) not in claimed]

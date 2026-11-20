@@ -4,18 +4,18 @@
   "components": [
     {
       "id": "manuals-host",
-      "name": "用户手册宿主（上游 ps5-webkit-autoloader v0.7.1，GPL-3.0）",
+      "name": "用户手册宿主（上游 ps5-webkit-autoloader v0.8.1，GPL-3.0）",
       "filename": "host.py",
-      "url": "https://github.com/itsPLK/ps5-webkit-autoloader/releases/download/v0.7.1/webkit-autoloader-host_v0.7.1.py",
-      "sha256": "960969a6fb839e4dbda17fbb62a52606e101fd408b6566b6cc053e80d7e152e1",
+      "url": "https://github.com/itsPLK/ps5-webkit-autoloader/releases/download/v0.8.1/webkit-autoloader-host_v0.8.1.py",
+      "sha256": "a23740960bad442c10d6e0910b88ef9b7db5dfa97859ca8b1a677c3d9dc1df67",
       "license": "GPL-3.0"
     },
     {
       "id": "ps5upload-engine",
       "name": "PS5Upload 引擎（Remote Play 唤醒 / 待机，GPL-3.0，可选：--with-power-engine）",
       "filename": "ps5upload-engine",
-      "url": "https://github.com/phantomptr/ps5upload/releases/download/v12.4.2/ps5upload-engine-12.4.2-linux-x64",
-      "sha256": "e69ddbc735de4128c29984bdab66b29fb0e40b1cb097066ff7ffe38e5b5e19a7",
+      "url": "https://github.com/phantomptr/ps5upload/releases/download/v12.6.14/ps5upload-engine-12.6.14-linux-x64",
+      "sha256": "bf5e3b56fde84293a097f7a18af1d0cb09acde4d33fb3d20279b57238b850128",
       "license": "GPL-3.0",
       "optional": true,
       "arch": "x86_64"

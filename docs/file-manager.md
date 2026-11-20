@@ -178,7 +178,8 @@ CUSA36464.rar（32 MB 字典，libarchive）64 MB/s；CUSA20499（4 GB 字典，
 
 ## PKG 安装与金手指导入
 
-**调研结论（2026-11-12，PS5Upload 引擎 v12.4.2 源码，未在运行中的引擎上探测）**：
+**调研结论（2026-11-12 按当时的 PS5Upload 引擎 v12.4.2 源码；2026-11-20 在 v12.6.14 引擎二进制里复核，
+接口与字段仍在，未在运行中的引擎上探测）**：
 `engine/crates/ps5upload-engine/src/install/deliver.rs` 的安装源是
 `enum Source { ConsolePath, HostFile, Remote { connection, path }, Url }`，按 snake_case 序列化，
 所以 `POST /api/pkg/install` 的 `source` 可以写成 `{"url": "http://…"}`，即计划里的**方案 A**，
@@ -270,7 +271,8 @@ ShadowMount+ 是否自动卸下旧挂载、挂上新位置。
 `POST /api/library/uninstall {items, delete_cheats, delete_saves, host}`：`items` 里是游戏库的游戏 `{path}`（文件夹或镜像文件），
 或 PKG 安装的游戏 `{origin: "pkg", title}`；`delete_cheats` 默认开，`delete_saves` 默认关。
 
-用到 ps5upload 引擎的四个接口（按 v12.4.16 源码核对，`engine/crates/ps5upload-engine` 与 `payload/src/register.c`）：
+用到 ps5upload 引擎的四个接口（2026-11-12 按 v12.4.16 源码核对，2026-11-20 在 v12.6.14 引擎二进制里确认这四个接口仍在，
+`engine/crates/ps5upload-engine` 与 `payload/src/register.c`）：
 
 | 接口 | 用途 |
 | --- | --- |

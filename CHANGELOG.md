@@ -1,5 +1,30 @@
 # 变更记录
 
+## 1.14.3 — 2026-11-20
+
+**改进**
+- 用户手册宿主升到上游 ps5-webkit-autoloader v0.8.1（**GPL-3.0**）：漏洞链改用 Wobkot + Relapse，
+  Poops 作为回退，支持 5.00–13.60 固件。`components.json` 的下载地址与 SHA-256 同步更新；命令行参数
+  与 v0.7.1 一致，现有 `ps5-jb-host.service` 不用改。已部署的环境再跑一次 `sudo ./install.sh` 会替换
+  `host.py`（保留配置与管理密码），之后 `sudo systemctl restart ps5-jb-host.service` 生效。
+- 插件下载改为「上游优先、镜像兜底」：`payloads.json` 每条用 `url` 指向项目自己的 Release，新字段
+  `fallback_urls` 指向镜像副本；`scripts/fetch_payloads.py` 按顺序尝试两个源，只有校验和一致的文件
+  才落盘，都失败时才算失败并列出各自原因。管理页的「插件更新」同样先取上游索引里的 `source_direct`
+  （项目 Release），不可用再用镜像副本。`fallback_urls` 只给下载器用，不会写进 `repo.json`。
+- 预设插件清单跟进上游：`elfldr` v0.27 → v0.28、`ps4mount` v0.7.3 → v0.8.0、
+  `Web File Manager` v1.13-rc2 → v1.14、`ps5upload` v12.4.2 → v12.6.14、
+  `WebKit Autoloader Installer` v0.7.1 → v0.8.1；其余 14 个已是最新，未改动。已有部署的 `repo.json`
+  不会被安装器覆盖（保留管理页选定的版本），升级在「设置 → 插件更新」里进行。
+  上游镜像 `ps5-payloads-mirror` 目前只同步到 ps5upload v12.6.13 和 WebKit v0.8.0，这两条的上游直链
+  是当前唯一的可用源，对应的镜像兜底地址要等镜像发布同版本后才生效。
+- `nanoDNS` 0.4 的上游 Release 被重新构建过：同一版本号下上游与镜像的文件大小相同但字节不同，
+  一个校验和只能保一个，所以这一条保留镜像版本（与 Payload Manager 官方仓库一致，也不会让管理页
+  在两者之间反复提示更新），只走镜像地址。
+- 可选的电源控制引擎（`--with-power-engine`）升到 PS5Upload v12.6.14，与插件清单里的 ps5upload
+  12.6.14 同版本，主机载荷和本机引擎不再跨代。`components.json` 的地址与 SHA-256 同步更新，
+  `ps5upload-engine.service` 不用改；已装旧引擎的环境重跑 `sudo ./install.sh --with-power-engine`
+  会按校验和替换成新引擎。
+
 ## 1.14.2 — 2026-11-17
 
 **改动**

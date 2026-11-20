@@ -260,5 +260,69 @@ class InstallerReportTests(unittest.TestCase):
             self.assertNotIn('仓库为空', output.getvalue())
 
 
+class FallbackSourceTests(unittest.TestCase):
+    """`url` is preferred, `fallback_urls` are the backups (upstream first, mirror second)."""
+
+    def setUp(self):
+        self.temp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.temp.cleanup)
+        self.repo_dir = Path(self.temp.name) / 'repo'
+        self.upstream = 'https://upstream.test/plugin.elf'
+        self.mirror = 'https://mirror.test/plugin.elf'
+        self.data = b'payload bytes'
+
+    def entry(self):
+        return {'filename': 'plugin.elf', 'url': self.upstream,
+                'fallback_urls': [self.mirror], 'checksum': sha256(self.data), 'version': 'v1.0'}
+
+    def run_with(self, responses):
+        fetch = load(FETCH, 'payload_fetch_fallback')
+        manifest = {'name': 'test', 'payloads': [self.entry()]}
+        seen, output = [], io.StringIO()
+        with redirect_stdout(output):
+            catalog, failures = fetch.run(manifest, self.repo_dir,
+                                          'http://192.0.2.10:8080/payloads/',
+                                          opener=opener_for(responses, seen))
+        return catalog, failures, seen
+
+    def test_preferred_source_is_used_and_the_mirror_is_left_alone(self):
+        catalog, failures, seen = self.run_with({self.upstream: self.data})
+        self.assertEqual(failures, [])
+        self.assertEqual(seen, [(self.upstream, 120)])
+        self.assertEqual(catalog[0]['filename'], 'plugin.elf')
+        on_disk = json.loads((self.repo_dir / 'repo.json').read_text(encoding='utf-8'))
+        self.assertNotIn('fallback_urls', on_disk['payloads'][0],
+                         'download-only fields stay out of what the PS5 reads')
+        self.assertNotIn('fallback_url', on_disk['payloads'][0])
+
+    def test_unreachable_preferred_source_falls_back_to_the_mirror(self):
+        catalog, failures, seen = self.run_with({
+            self.upstream: urllib.error.URLError('upstream down'),
+            self.mirror: self.data})
+        self.assertEqual(failures, [])
+        self.assertEqual([url for url, _ in seen], [self.upstream, self.mirror])
+        self.assertEqual(len(catalog), 1)
+        self.assertTrue((self.repo_dir / 'payloads' / 'plugin.elf').is_file())
+
+    def test_wrong_bytes_from_the_preferred_source_fall_back(self):
+        catalog, failures, seen = self.run_with({self.upstream: b'tampered',
+                                                 self.mirror: self.data})
+        self.assertEqual(failures, [])
+        self.assertEqual(len(catalog), 1)
+        self.assertEqual((self.repo_dir / 'payloads' / 'plugin.elf').read_bytes(), self.data)
+
+    def test_every_source_failing_names_them_all(self):
+        catalog, failures, _ = self.run_with({
+            self.upstream: urllib.error.URLError('upstream down'),
+            self.mirror: urllib.error.URLError('mirror down')})
+        self.assertEqual(catalog, [])
+        self.assertEqual(len(failures), 1)
+        reason = failures[0][1]
+        self.assertIn('所有下载源都失败', reason)
+        self.assertIn('upstream.test', reason)
+        self.assertIn('mirror.test', reason)
+        self.assertFalse((self.repo_dir / 'payloads' / 'plugin.elf').exists())
+
+
 if __name__ == '__main__':
     unittest.main()
