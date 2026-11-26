@@ -28,7 +28,7 @@ from version import VERSION
 
 DEFAULT_URL = 'https://itsplk.github.io/ps5-payloads-mirror/payloads_v2.json'
 INDEX_LIMIT = 4 << 20
-UA = {'User-Agent': f'ps5-jb-server/{VERSION} (+plugin updates)', 'Accept': 'application/json'}
+UA = {'User-Agent': f'ps5-manage/{VERSION} (+plugin updates)', 'Accept': 'application/json'}
 _DIGEST = re.compile(r'[0-9a-f]{64}\Z')
 _FILENAME = re.compile(r'[A-Za-z0-9][A-Za-z0-9._-]{0,120}\.(?:elf|bin)\Z', re.IGNORECASE)
 

@@ -271,7 +271,7 @@ class BuiltinDomainExposureTests(unittest.TestCase):
     def test_state_exposes_builtin_domains(self):
         engine = create_engine(self.store, '192.0.2.20', '192.0.2.0/24', firewall=NullFirewall())
         app = Application(engine)
-        app.service_info = lambda: {'units': {'host': {'name': 'ps5-jb-host', 'state': 'unknown'}},
+        app.service_info = lambda: {'units': {'host': {'name': 'ps5-manage-host', 'state': 'unknown'}},
                                     'ports': {}, 'paths': {}}
         state = app.state()
         self.assertEqual(state['local_domains'],

@@ -4,11 +4,11 @@
 
 | 方式 | 命令 | 适用 |
 | --- | --- | --- |
-| 一键脚本 | `curl -fsSL .../bootstrap.sh \| sudo sh` | 全新机器，源码放在 `/opt/ps5-jb-server-src` |
-| 源码安装 | `git clone … && cd ps5-jb-server && sudo ./install.sh` | 想控制源码位置/版本 |
+| 一键脚本 | `curl -fsSL .../bootstrap.sh \| sudo sh` | 全新机器，源码放在 `/opt/ps5-manage-src` |
+| 源码安装 | `git clone … && cd ps5-manage && sudo ./install.sh` | 想控制源码位置/版本 |
 | 演练 | `sudo ./install.sh --dry-run` | 先看会改哪些文件，不动系统 |
 
-`bootstrap.sh` 支持环境变量：`PS5JB_REF`（默认 `main`）、`PS5JB_DIR`（默认 `/opt/ps5-jb-server-src`）。
+`bootstrap.sh` 支持环境变量：`PS5_MANAGE_REF`（或 `PS5JB_REF`，默认 `main`）、`PS5_MANAGE_DIR`（或 `PS5JB_DIR`，默认 `/opt/ps5-manage-src`）。
 
 ## 安装做了什么
 
@@ -18,21 +18,21 @@
    `--no-deps` 只报告不安装；`--prefix` 测试安装从不安装软件包。
 1. 预检：root、`python3`/`openssl`/`nft`/`systemctl` 是否存在、`python3-dnspython` 是否可导入、
    端口是否被占用（被占用会指明是谁）。
-2. 建立目录：`/opt/ps5-jb-server`（程序）、`/etc/ps5-jb-server`（配置与证书）、
-   `/var/lib/ps5-jb-server`（密码哈希、策略、标签）、`/srv/ps5-jb-server`（插件仓库）。
-3. 写 `/etc/ps5-jb-server/config.toml`（已存在则保留）与两套自签证书
+2. 建立目录：`/opt/ps5-manage`（程序）、`/etc/ps5-manage`（配置与证书）、
+   `/var/lib/ps5-manage`（密码哈希、策略、标签）、`/srv/ps5-manage`（插件仓库）。
+3. 写 `/etc/ps5-manage/config.toml`（已存在则保留）与两套自签证书
    （管理页 `admin.*`、用户手册 `manuals.*`，含 `manuals.playstation.net` 等 SAN）。
 4. 生成 12 位管理密码 → `credentials.json`（PBKDF2-SHA256、310k 轮）与
-   `/root/ps5-jb-server-access.txt`（0600）。
+   `/root/ps5-manage-access.txt`（0600）。
 5. 下载第三方组件：用户手册宿主（GPL-3.0，校验 SHA-256）、插件（`payloads.json` 清单，逐个校验）。
    重新运行会合并已有的 `repo.json`：管理页上传的插件、编辑过的信息、更新或回退后的版本都会保留。
    插件默认从上游镜像自动下载；某一条下载失败（网络、HTTP、校验和不符）只记录原因，不中断安装，
    结束时汇总成功/失败数量。仓库为空时会明确告警，之后可重跑
-   `sudo python3 /opt/ps5-jb-server-src/scripts/fetch_payloads.py --repo-dir /srv/ps5-jb-server --base-url http://<本机>:8080/payloads/`
+   `sudo python3 /opt/ps5-manage-src/scripts/fetch_payloads.py --repo-dir /srv/ps5-manage --base-url http://<本机>:8080/payloads/`
    补齐，无需重新安装。
 6. 写 nftables 基线（默认拒绝）、`/etc/sysctl.d`（`ip_forward=0`），并 `nft -c` 校验语法。
-7. 安装三个 unit 并 `enable --now`：`ps5-jb-server`（策略/DNS/管理）、`ps5-jb-host`（用户手册 443/80）、
-   `ps5-jb-repo`（插件仓库 8080）。
+7. 安装三个 unit 并 `enable --now`：`ps5-manage`（策略/DNS/管理）、`ps5-manage-host`（用户手册 443/80）、
+   `ps5-manage-repo`（插件仓库 8080）。
 8. 健康检查：管理页、仓库、用户手册三个 URL；最后打印地址与密码位置。
 
 可选步骤（显式加参数才执行）：
@@ -71,7 +71,7 @@
 
 | 变量 | 说明 |
 | --- | --- |
-| `PS5JB_PROXY` | 本服务专用，优先级最高 |
+| `PS5_MANAGE_PROXY` / `PS5JB_PROXY` | 本服务专用，优先级最高 |
 | `HTTPS_PROXY` / `https_proxy` | 通用写法，GitHub 走 HTTPS |
 | `HTTP_PROXY` / `http_proxy`、`ALL_PROXY` / `all_proxy` | 依次兜底 |
 
@@ -81,20 +81,20 @@
 三种配法，任选其一：
 
 ```sh
-# 1) 安装时指定：写进 /etc/systemd/system/ps5-jb-server.service.d/proxy.conf
+# 1) 安装时指定：写进 /etc/systemd/system/ps5-manage.service.d/proxy.conf
 sudo ./install.sh --proxy http://192.168.1.2:6152
 
 # 2) 已安装的机器：手动写同一个 drop-in
-sudo mkdir -p /etc/systemd/system/ps5-jb-server.service.d
-sudo tee /etc/systemd/system/ps5-jb-server.service.d/proxy.conf >/dev/null <<'EOF'
+sudo mkdir -p /etc/systemd/system/ps5-manage.service.d
+sudo tee /etc/systemd/system/ps5-manage.service.d/proxy.conf >/dev/null <<'EOF'
 [Service]
 Environment="https_proxy=http://192.168.1.2:6152"
 EOF
-sudo systemctl daemon-reload && sudo systemctl restart ps5-jb-server
+sudo systemctl daemon-reload && sudo systemctl restart ps5-manage
 
 # 3) 临时验证
 sudo systemctl set-environment https_proxy=http://192.168.1.2:6152
-sudo systemctl restart ps5-jb-server
+sudo systemctl restart ps5-manage
 ```
 
 「设置 → 服务更新」新增的「网络代理」一行会显示当前生效的地址与来源变量名，或「直连」；配错
@@ -118,14 +118,14 @@ sudo systemctl restart ps5-jb-server
 标准布局的升级动作如下（先完成备份和源码获取）：
 
 ```sh
-sudo systemctl stop ps5-jb-server.service ps5-jb-host.service ps5-jb-repo.service
+sudo systemctl stop ps5-manage.service ps5-manage-host.service ps5-manage-repo.service
 sudo ./install.sh upgrade --no-payloads --no-manuals-host --no-firewall
-sudo systemctl restart ps5-jb-server.service ps5-jb-host.service ps5-jb-repo.service
+sudo systemctl restart ps5-manage.service ps5-manage-host.service ps5-manage-repo.service
 ```
 
 先停服务是因为安装器会检查端口占用；如果中途失败，应先处理报错或恢复备份，再启动原服务。旧的 `/opt/ps5-manager` 手工布局请按专门步骤升级，不要直接套用标准路径。
 
-- 覆盖 `/opt/ps5-jb-server` 下的程序与前端；
+- 覆盖 `/opt/ps5-manage` 下的程序与前端；
 - **保留** `config.toml`、证书、管理员密码、白名单、标签、插件仓库；
 - 重启三个服务后做健康检查。
 

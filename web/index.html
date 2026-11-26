@@ -212,6 +212,140 @@
             </article>
           </div>
 
+          <section id="overview-telemetry-section" class="overview-telemetry-section" aria-labelledby="overview-telemetry-title">
+            <header class="overview-band-head">
+              <div class="overview-band-title">
+                <h2 id="overview-telemetry-title">PS5 主机状态 <button class="help-tip" type="button" data-help="overview-telemetry"></button></h2>
+                <span id="overview-telemetry-host-meta" class="overview-band-meta muted">等待发现 PS5 主机…</span>
+              </div>
+              <div class="overview-band-actions">
+                <select id="overview-host-select" class="overview-host-select" aria-label="选择概览显示的 PS5 主机" hidden></select>
+                <button id="overview-telemetry-refresh" class="button button-secondary button-small" type="button">
+                  <svg class="icon" aria-hidden="true"><use href="#i-refresh"></use></svg>
+                  <span class="spinner" aria-hidden="true" hidden></span>
+                  <span class="button-label">刷新状态</span>
+                </button>
+              </div>
+            </header>
+            <p id="overview-telemetry-note" class="overview-band-note muted" hidden></p>
+            <div class="telemetry-grid">
+              <article class="card telemetry-card" aria-labelledby="telemetry-cpu-title">
+                <header class="telemetry-head">
+                  <span class="telemetry-dot" aria-hidden="true"></span>
+                  <h3 id="telemetry-cpu-title">处理器</h3>
+                </header>
+                <div class="telemetry-tiles telemetry-tiles-2x2">
+                  <div class="telemetry-tile">
+                    <span class="telemetry-tile-label">CPU 频率</span>
+                    <strong id="telemetry-cpu-freq" class="telemetry-tile-val">—</strong>
+                    <span id="telemetry-cpu-cores" class="telemetry-tile-sub">—</span>
+                  </div>
+                  <div class="telemetry-tile">
+                    <span class="telemetry-tile-label">CPU 温度</span>
+                    <strong id="telemetry-cpu-temp" class="telemetry-tile-val">—</strong>
+                    <span id="telemetry-soc-temp" class="telemetry-tile-sub">SoC —</span>
+                  </div>
+                  <div class="telemetry-tile">
+                    <span class="telemetry-tile-label">CPU 功耗</span>
+                    <strong id="telemetry-cpu-power" class="telemetry-tile-val">—</strong>
+                    <span id="telemetry-cpu-power-note" class="telemetry-tile-sub">整机 SoC 估算</span>
+                  </div>
+                  <div class="telemetry-tile">
+                    <span class="telemetry-tile-label">CPU 负载</span>
+                    <strong id="telemetry-cpu-load" class="telemetry-tile-val">—</strong>
+                    <span id="telemetry-fan-pct" class="telemetry-tile-sub">风扇 —</span>
+                  </div>
+                </div>
+                <div class="telemetry-bar-block">
+                  <div class="telemetry-bar-head"><span>CPU 负载</span><span id="telemetry-cpu-load-bar-text" class="mono">—</span></div>
+                  <div class="telemetry-bar"><div id="telemetry-cpu-load-bar" class="telemetry-bar-fill" data-tone="good"></div></div>
+                </div>
+              </article>
+
+              <article class="card telemetry-card" aria-labelledby="telemetry-mem-title">
+                <header class="telemetry-head">
+                  <span class="telemetry-dot" aria-hidden="true"></span>
+                  <h3 id="telemetry-mem-title">内存</h3>
+                </header>
+                <div class="telemetry-tiles telemetry-tiles-2col">
+                  <div class="telemetry-tile telemetry-tile-tall">
+                    <span class="telemetry-tile-label">已用 / 总量</span>
+                    <strong id="telemetry-mem-used-total" class="telemetry-tile-val telemetry-tile-stack">—</strong>
+                    <span id="telemetry-mem-note" class="telemetry-tile-sub">ps5upload 硬件读数</span>
+                  </div>
+                  <div class="telemetry-tile telemetry-tile-tall">
+                    <span class="telemetry-tile-label">游戏显存池</span>
+                    <strong id="telemetry-mem-direct" class="telemetry-tile-val">—</strong>
+                    <span class="telemetry-tile-sub">Direct Memory</span>
+                  </div>
+                </div>
+                <div class="telemetry-bar-block">
+                  <div class="telemetry-bar-head"><span>内存使用率</span><span id="telemetry-mem-pct-text" class="mono">—</span></div>
+                  <div class="telemetry-bar"><div id="telemetry-mem-bar" class="telemetry-bar-fill" data-tone="good"></div></div>
+                  <p id="telemetry-mem-sub" class="telemetry-tile-sub telemetry-mem-sub">Swap — · 常驻 —</p>
+                </div>
+              </article>
+
+              <article class="card telemetry-card" aria-labelledby="telemetry-storage-title">
+                <header class="telemetry-head">
+                  <span class="telemetry-dot" aria-hidden="true"></span>
+                  <h3 id="telemetry-storage-title">存储</h3>
+                </header>
+                <div id="overview-storage-list" class="telemetry-storage-list">
+                  <p class="muted telemetry-empty">等待连接 PS5 后读取存储信息。</p>
+                </div>
+              </article>
+
+              <article class="card telemetry-card telemetry-game-card" aria-labelledby="telemetry-game-title">
+                <header class="telemetry-head telemetry-game-head">
+                  <div class="telemetry-head-left">
+                    <span class="telemetry-dot" aria-hidden="true"></span>
+                    <h3 id="telemetry-game-title">当前游戏</h3>
+                  </div>
+                  <span id="telemetry-game-id-pill" class="telemetry-game-pill mono">空闲</span>
+                </header>
+                <div class="telemetry-game-body">
+                  <div class="telemetry-game-info">
+                    <div class="telemetry-fps-box" id="telemetry-fps-box">
+                      <span id="telemetry-fps-val" class="telemetry-fps-val">—</span>
+                      <span class="telemetry-fps-unit">FPS</span>
+                    </div>
+                    <p id="telemetry-game-name" class="telemetry-game-name">未在运行游戏</p>
+                    <p id="telemetry-game-sub" class="telemetry-game-sub"></p>
+                    <p id="telemetry-game-dev" class="telemetry-game-meta"></p>
+                    <p id="telemetry-game-genre" class="telemetry-game-meta"></p>
+                  </div>
+                  <div class="telemetry-cover-wrap">
+                    <img id="telemetry-game-cover" class="telemetry-cover" alt="" hidden>
+                    <div id="telemetry-cover-placeholder" class="telemetry-cover telemetry-cover-blank">PS5</div>
+                    <span id="telemetry-game-state-pill" class="telemetry-game-state" hidden><span class="telemetry-live-dot" aria-hidden="true"></span>运行中</span>
+                  </div>
+                </div>
+                <p id="telemetry-game-desc" class="telemetry-game-desc">打开游戏并在主机运行 ps5upload 后，此处展示帧率、标题与封面信息。</p>
+              </article>
+            </div>
+          </section>
+
+          <section id="overview-services-section" class="card overview-services-card" aria-labelledby="overview-services-title">
+            <header class="card-head">
+              <div class="overview-services-title-wrap">
+                <h2 id="overview-services-title">主机开放服务 <button class="help-tip" type="button" data-help="overview-services"></button></h2>
+                <p id="overview-services-summary" class="card-sub">自动扫描 PS5 上已启动 ELF 所监听的网络端口与服务名称。</p>
+              </div>
+              <div class="overview-band-actions">
+                <span id="overview-services-host" class="state-chip" data-tone="neutral">未选择主机</span>
+                <button id="overview-services-refresh" class="button button-secondary button-small" type="button">
+                  <svg class="icon" aria-hidden="true"><use href="#i-refresh"></use></svg>
+                  <span class="spinner" aria-hidden="true" hidden></span>
+                  <span class="button-label">扫描端口</span>
+                </button>
+              </div>
+            </header>
+            <div id="overview-services-grid" class="services-grid">
+              <p class="muted services-empty">登录后将自动扫描已连接 PS5 的开放端口。</p>
+            </div>
+          </section>
+
           <div class="overview-columns">
             <div class="stack">
               <section class="card" aria-labelledby="runtime-title">
@@ -440,9 +574,10 @@
                     <th scope="col">结果</th>
                     <th scope="col">分类</th>
                     <th scope="col">名称</th>
+                    <th scope="col" class="activity-action-col">操作</th>
                   </tr>
                 </thead>
-                <tbody id="activity-body"><tr><td colspan="9" class="empty-state">正在读取网络活动…</td></tr></tbody>
+                <tbody id="activity-body"><tr><td colspan="10" class="empty-state">正在读取网络活动…</td></tr></tbody>
               </table>
             </div>
             <p class="footnote">包含经过本机网关的 IPv4 连接、DNS 查询与本机服务事件；本机服务事件不可批量放行。分类自动推断，自定义命名与分类优先。</p>
@@ -498,6 +633,7 @@
                       <th scope="col">结果</th>
                       <th scope="col">分类</th>
                       <th scope="col">名称</th>
+                      <th scope="col" class="activity-action-col">操作</th>
                     </tr>
                   </thead>
                   <tbody id="history-body"></tbody>
@@ -1149,7 +1285,7 @@
             <header class="card-head"><h2 id="disable-title">停用与回滚 <button class="help-tip" type="button" data-help="disable"></button></h2></header>
             <ol class="steps">
               <li><span>先把 PS5 的默认网关改回家庭路由器，DNS 改为常用解析器。</span></li>
-              <li><span>再在主机上停止并禁用服务：</span><pre class="code-block"><code id="info-stop-command">systemctl disable --now ps5-jb-host ps5-jb-server ps5-jb-repo</code></pre></li>
+              <li><span>再在主机上停止并禁用服务：</span><pre class="code-block"><code id="info-stop-command">systemctl disable --now ps5-manage-host ps5-manage ps5-manage-repo</code></pre></li>
             </ol>
             <p class="secondary-note">停止服务会关闭此容器的 IPv4 转发；原规则保留默认拒绝，避免意外漏放。若需要不可绕过的设备隔离，应由家庭路由器 / VLAN 实施。</p>
           </section>

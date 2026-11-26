@@ -41,7 +41,7 @@ WEST = ('UP', 'EP', 'UB', 'EB', 'IP')
 
 
 def fetch(url, timeout=60):
-    request = urllib.request.Request(url, headers={'User-Agent': 'ps5-jb-server-build'})
+    request = urllib.request.Request(url, headers={'User-Agent': 'ps5-manage-build'})
     with urllib.request.urlopen(request, timeout=timeout) as response:
         return response.read()
 

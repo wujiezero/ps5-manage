@@ -291,11 +291,11 @@ def default_opener(url, use_proxy):
 def build_request(channel, message):
     """urllib Request for one channel and message {event, title, body, time}."""
     kind = channel['type']
-    headers = {'Content-Type': 'application/json; charset=utf-8', 'User-Agent': 'ps5-jb-server'}
+    headers = {'Content-Type': 'application/json; charset=utf-8', 'User-Agent': 'ps5-manage'}
     if kind == 'webhook':
         url = channel['url']
         payload = {'event': message['event'], 'title': message['title'], 'body': message['body'],
-                   'time': message['time'], 'source': 'ps5-jb-server'}
+                   'time': message['time'], 'source': 'ps5-manage'}
     elif kind == 'bark':
         url = channel['server'] + '/push'
         payload = {'device_key': channel['device_key'], 'title': message['title'], 'body': message['body'],

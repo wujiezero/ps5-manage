@@ -24,7 +24,7 @@ import urllib.parse
 import urllib.request
 from pathlib import Path
 
-UA = {'User-Agent': 'ps5-jb-server/1.0 (+payload fetcher)'}
+UA = {'User-Agent': 'ps5-manage/1.0 (+payload fetcher)'}
 CATALOG = 'repo.json'
 
 

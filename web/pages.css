@@ -249,11 +249,15 @@ tbody tr { transition: background var(--dur) var(--ease); }
   tbody tr:hover { background: var(--raised); }
 }
 
-.activity-table { min-width: 880px; }
+.activity-table { min-width: 960px; }
 .activity-table th, .activity-table td { white-space: nowrap; }
 .activity-table td:nth-child(2) { color: var(--muted); }
 .activity-table td:nth-child(4) { max-width: 240px; white-space: normal; overflow-wrap: anywhere; }
 .activity-table td:nth-child(8), .activity-table td:nth-child(9) { max-width: 170px; white-space: normal; overflow-wrap: anywhere; }
+.activity-action-col, .activity-action-cell { width: 84px; text-align: right; }
+.activity-action-done { font-size: 0.75rem; font-weight: 600; color: var(--green); }
+.activity-action-muted { font-size: 0.75rem; color: var(--muted); }
+.activity-allow-one { min-height: 30px; padding: 3px 10px; font-size: 0.75rem; }
 .check-cell { width: 44px; }
 .activity-check-target {
   display: inline-flex;

@@ -30,13 +30,13 @@ jobs:
           RELEASE_TAG: ${{ github.ref_name }}
         run: |
           if [ "$GITHUB_REF_TYPE" = tag ]; then
-            python scripts/build_release.py --tag "$RELEASE_TAG"
+            python scripts/build_release.py --with-legacy-alias --tag "$RELEASE_TAG"
           else
-            python scripts/build_release.py
+            python scripts/build_release.py --with-legacy-alias
           fi
       - name: Test the bundled front end
         run: |
-          mkdir -p /tmp/bundle && tar -xzf dist/*.tar.gz -C /tmp/bundle
+          mkdir -p /tmp/bundle && tar -xzf dist/ps5-manage-*.tar.gz -C /tmp/bundle
           for file in /tmp/bundle/*/web/*.js; do node --check "$file"; done
           UI_WEB_DIR="$(echo /tmp/bundle/*/web)" node --test tests/ui-interactions.js
       - uses: actions/upload-artifact@v4

@@ -88,7 +88,7 @@ class _Server(ThreadingHTTPServer):
 
 class _Handler(BaseHTTPRequestHandler):
     protocol_version = 'HTTP/1.1'
-    server_version = 'ps5-jb-pkg'
+    server_version = 'ps5-manage-pkg'
     sys_version = ''
     timeout = 30
 

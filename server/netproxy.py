@@ -16,11 +16,11 @@ import os
 import urllib.parse
 import urllib.request
 
-#: Read in this order; the first non-empty value wins.  ``PS5JB_PROXY`` is ours
-#: and lets one service be pointed at a proxy without touching anything else;
-#: the remaining names are the de-facto standard ones, in both spellings
-#: because ``urllib`` only honours the lower-case form.
-VARIABLES = ('PS5JB_PROXY', 'HTTPS_PROXY', 'https_proxy',
+#: Read in this order; the first non-empty value wins.  ``PS5_MANAGE_PROXY`` (or
+#: legacy ``PS5JB_PROXY``) lets one service be pointed at a proxy without
+#: touching anything else; the remaining names are the de-facto standard ones, in
+#: both spellings because ``urllib`` only honours the lower-case form.
+VARIABLES = ('PS5_MANAGE_PROXY', 'PS5JB_PROXY', 'HTTPS_PROXY', 'https_proxy',
              'HTTP_PROXY', 'http_proxy', 'ALL_PROXY', 'all_proxy')
 #: One address serves both schemes: GitHub and the plugin mirror are HTTPS, and
 #: a plain HTTP proxy tunnels those with CONNECT.

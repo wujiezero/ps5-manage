@@ -4,12 +4,12 @@
 
 | 单元 | 端口 | 职责 |
 | --- | --- | --- |
-| `ps5-jb-server` | 53 udp/tcp、8443 tcp；8090 tcp（PKG 安装时按需监听） | 策略 DNS、管理页与 API、nftables 策略、网络活动采集 |
-| `ps5-jb-host` | 443、80 | 用户手册站点（自签证书，CN/SAN 为 `manuals.playstation.net` 等） |
-| `ps5-jb-repo` | 8080 | 只读插件仓库 `/repo.json` 与 `/payloads/<file>` |
+| `ps5-manage` | 53 udp/tcp、8443 tcp；8090 tcp（PKG 安装时按需监听） | 策略 DNS、管理页与 API、nftables 策略、网络活动采集 |
+| `ps5-manage-host` | 443、80 | 用户手册站点（自签证书，CN/SAN 为 `manuals.playstation.net` 等） |
+| `ps5-manage-repo` | 8080 | 只读插件仓库 `/repo.json` 与 `/payloads/<file>` |
 
 三者都以 root 运行；单元带 `NoNewPrivileges` / `ProtectSystem=strict` / 最小 `ReadWritePaths`。
-`ps5-jb-server` 的 `ExecStopPost` 会强制 `ip_forward=0`，避免 nftables 停止时意外放行。
+`ps5-manage` 的 `ExecStopPost` 会强制 `ip_forward=0`，避免 nftables 停止时意外放行。
 
 ## 策略执行顺序
 

@@ -1,5 +1,5 @@
 [Unit]
-Description=ps5-jb-server policy, DNS and admin console
+Description=ps5-manage policy, DNS and admin console
 Documentation=https://github.com/wujiezero/ps5-manage
 After=network-online.target nftables.service
 Wants=network-online.target
@@ -9,7 +9,7 @@ Requires=nftables.service
 Type=simple
 # Optional: route the web updater's GitHub downloads through a LAN proxy.
 # Set it with `install.sh --proxy URL` or a drop-in, e.g.
-#   /etc/systemd/system/ps5-jb-server.service.d/proxy.conf
+#   /etc/systemd/system/ps5-manage.service.d/proxy.conf
 #   [Service]
 #   Environment="https_proxy=http://192.168.1.2:6152"
 # Unset means a direct connection; PS5, NAS and the local repository always

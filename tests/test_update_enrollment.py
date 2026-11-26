@@ -33,8 +33,8 @@ class EnrollmentTests(unittest.TestCase):
             self.assertEqual(descriptor['data_dir'], str(data))
             self.assertEqual(descriptor['health_url'], 'https://192.0.2.9:9443/api/version')
             self.assertEqual(layout.config.read_text(), config)
-            self.assertEqual(descriptor['admin_unit'], 'ps5-jb-server.service')
-            self.assertEqual(descriptor['host_unit'], 'ps5-jb-host.service')
+            self.assertEqual(descriptor['admin_unit'], 'ps5-manage.service')
+            self.assertEqual(descriptor['host_unit'], 'ps5-manage-host.service')
 
     def test_standard_services_depend_on_recovery_before_start(self):
         module = installer()
@@ -47,17 +47,17 @@ class EnrollmentTests(unittest.TestCase):
             from unittest import mock
             with mock.patch.object(module.Runner, 'run'):
                 module.install_units(layout, module.Runner(layout))
-            recovery = (layout.systemd_dir / 'ps5-jb-server-update-recovery.service').read_text()
+            recovery = (layout.systemd_dir / 'ps5-manage-update-recovery.service').read_text()
             self.assertIn(' --recover ', recovery)
-            self.assertIn('Before=ps5-jb-server.service ps5-jb-repo.service', recovery)
-            for unit in ('ps5-jb-server.service', 'ps5-jb-repo.service'):
+            self.assertIn('Before=ps5-manage.service ps5-manage-repo.service', recovery)
+            for unit in ('ps5-manage.service', 'ps5-manage-repo.service'):
                 dropin = (layout.systemd_dir / (unit + '.d/update-recovery.conf')).read_text()
-                self.assertIn('Requires=ps5-jb-server-update-recovery.service', dropin)
-                self.assertIn('After=ps5-jb-server-update-recovery.service', dropin)
-            admin = (layout.systemd_dir / 'ps5-jb-server.service.d/update-recovery.conf').read_text()
-            self.assertIn('Wants=ps5-jb-host.service', admin)
-            repo = (layout.systemd_dir / 'ps5-jb-repo.service.d/update-recovery.conf').read_text()
-            self.assertNotIn('Wants=ps5-jb-host.service', repo)
+                self.assertIn('Requires=ps5-manage-update-recovery.service', dropin)
+                self.assertIn('After=ps5-manage-update-recovery.service', dropin)
+            admin = (layout.systemd_dir / 'ps5-manage.service.d/update-recovery.conf').read_text()
+            self.assertIn('Wants=ps5-manage-host.service', admin)
+            repo = (layout.systemd_dir / 'ps5-manage-repo.service.d/update-recovery.conf').read_text()
+            self.assertNotIn('Wants=ps5-manage-host.service', repo)
 
     def test_legacy_enrollment_requires_installed_update_files_and_preserves_data(self):
         path = ROOT / 'scripts/enable_web_updates.py'

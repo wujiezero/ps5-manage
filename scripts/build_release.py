@@ -89,7 +89,7 @@ def web_file_pattern(root):
     raise ValueError('缺少前端文件名规则 WEB_FILE_PATTERN')
 
 
-def build_release(root, output, tag=None):
+def build_release(root, output, tag=None, package_name='ps5-manage'):
     root, output = Path(root), Path(output)
     version = source_version(root)
     if tag and tag != 'v' + version:
@@ -103,14 +103,14 @@ def build_release(root, output, tag=None):
     if not all((root / 'server' / name).is_file() for name in required):
         raise ValueError('安装包不完整：缺少运行模块')
     output.mkdir(parents=True, exist_ok=True)
-    name = f'ps5-jb-server-{version}.tar.gz'
+    name = f'{package_name}-{version}.tar.gz'
     target = output / name
-    prefix = f'ps5-jb-server-{version}/'
+    prefix = f'{package_name}-{version}/'
     with target.open('wb') as destination:
         with gzip.GzipFile(filename='', mode='wb', fileobj=destination, mtime=0) as compressed:
             with tarfile.open(fileobj=compressed, mode='w', format=tarfile.USTAR_FORMAT) as archive:
                 entries = [(path.relative_to(root).as_posix(), path.read_bytes()) for path in paths]
-                entries += [('web/' + name, data) for name, data in web.items()]
+                entries += [('web/' + item_name, data) for item_name, data in web.items()]
                 entries.append(('VERSION', (version + '\n').encode()))
                 for relative, data in sorted(entries):
                     info = tarfile.TarInfo(prefix + relative)
@@ -125,9 +125,14 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--output', type=Path, default=Path('dist'))
     parser.add_argument('--tag')
+    parser.add_argument('--with-legacy-alias', action='store_true',
+                        help='Also write ps5-jb-server-<version>.tar.gz so pre-rename installations can web-update.')
     args = parser.parse_args()
-    for path in build_release(Path(__file__).resolve().parents[1], args.output, args.tag):
-        print(path)
+    root = Path(__file__).resolve().parents[1]
+    names = ('ps5-manage', 'ps5-jb-server') if args.with_legacy_alias else ('ps5-manage',)
+    for pkg in names:
+        for path in build_release(root, args.output, args.tag, package_name=pkg):
+            print(path)
 
 
 if __name__ == '__main__':

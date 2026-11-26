@@ -133,7 +133,7 @@ class DeliveryTests(unittest.TestCase):
         message = {'event': 'transfer.finished', 'title': '标题', 'body': '正文', 'time': 't'}
         cases = {
             'webhook': ({'type': 'webhook', 'url': 'http://192.0.2.7:8000/hook'}, 'http://192.0.2.7:8000/hook',
-                        {'event': 'transfer.finished', 'title': '标题', 'body': '正文', 'time': 't', 'source': 'ps5-jb-server'}),
+                        {'event': 'transfer.finished', 'title': '标题', 'body': '正文', 'time': 't', 'source': 'ps5-manage'}),
             'bark': ({'type': 'bark', 'server': 'https://api.day.app', 'device_key': BARK_KEY}, 'https://api.day.app/push',
                      {'device_key': BARK_KEY, 'title': '标题', 'body': '正文', 'group': 'PS5'}),
             'ntfy': ({'type': 'ntfy', 'server': 'https://ntfy.sh', 'topic': 'ps5-home', 'token': 'tk_abc'}, 'https://ntfy.sh/',

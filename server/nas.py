@@ -81,7 +81,7 @@ def clean_path(path):
 class SecretBox:
     """AES-256-GCM for NAS credentials.
 
-    The 32-byte key lives in its own file (default /etc/ps5-jb-server/nas.key,
+    The 32-byte key lives in its own file (default /etc/ps5-manage/nas.key,
     0600), apart from nas.json in the data directory, so a copy or backup of
     the data directory alone does not reveal any NAS login. Each ciphertext is
     bound to its connection id (AAD), so it cannot be moved to another entry.
@@ -2232,8 +2232,8 @@ def check_connection(config):
 
 def _write_check(client):
     """Create a folder, write and remove a small file in it, remove the folder."""
-    folder = f'/.ps5jb-write-test-{secrets.token_hex(4)}'
-    data = b'ps5-jb-server write test\n'
+    folder = f'/.ps5manage-write-test-{secrets.token_hex(4)}'
+    data = b'ps5-manage write test\n'
     try:
         client.mkdir(folder)
         put_file(client, folder + '/test.txt', [data], len(data))

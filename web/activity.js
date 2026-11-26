@@ -83,10 +83,31 @@ function activityDescribe(event) {
   return event.port === null ? host : `${host}:${event.port}`;
 }
 
+function activityAllowTarget(event) {
+  if (!event || event.kind === 'service' || event.local) return '';
+  if (event.domain) return `domain:${event.domain}`;
+  if (event.dst) return `ip:${event.dst}`;
+  return event.target && !event.target.startsWith('service:') ? event.target : '';
+}
+
+function formatAllowToast(label, result) {
+  const summary = result && result.summary && typeof result.summary === 'object' ? result.summary : null;
+  const dom = summary && summary.domains ? summary.domains : {};
+  const net = summary && summary.networks ? summary.networks : {};
+  const wildcards = Array.isArray(dom.merged_wildcards) ? dom.merged_wildcards : [];
+  const collapsed = Array.isArray(net.collapsed) ? net.collapsed : [];
+  const covered = Array.isArray(dom.covered) ? dom.covered : [];
+  const dedup = [...(Array.isArray(dom.deduplicated) ? dom.deduplicated : []), ...(Array.isArray(net.deduplicated) ? net.deduplicated : [])];
+  if (wildcards.length) return `已放行 ${label}，并自动合并为 ${wildcards.join('、')}。`;
+  if (collapsed.length) return `已放行 ${label}，网段已合并为 ${collapsed.join('、')}。`;
+  if (covered.length || dedup.length) return `${label} 已在白名单或被现有通配规则覆盖。`;
+  return `已放行 ${label}，白名单已更新。`;
+}
+
 function activityEmptyRow(message, withCta = false) {
   const row = document.createElement('tr');
   const cell = document.createElement('td');
-  cell.colSpan = 9;
+  cell.colSpan = 10;
   cell.className = 'empty-state';
   const text = document.createElement('p');
   text.textContent = message;
@@ -199,7 +220,27 @@ function activityRow(event) {
   }
   if (!nameCell.textContent) nameCell.dataset.empty = 'true';
 
-  row.append(checkCell, timeCell, clientCell, domainCell, ipCell, portCell, verdictCell, categoryCell, nameCell);
+  const actionCell = document.createElement('td');
+  actionCell.className = 'activity-action-cell';
+  const allowTarget = activityAllowTarget(event);
+  if (event.kind === 'service' || event.local) {
+    actionCell.append(makeElement('span', 'activity-action-muted', event.local ? '内置域名' : '本机服务'));
+  } else if (event.allowedNow === true) {
+    actionCell.append(makeElement('span', 'activity-action-done', '已放行'));
+  } else if (allowTarget) {
+    const button = makeElement('button', 'button button-secondary button-small activity-allow-one', '放行');
+    button.type = 'button';
+    button.setAttribute('aria-label', `一键放行 ${event.domain || event.dst}`);
+    button.addEventListener('click', (clickEvent) => {
+      clickEvent.stopPropagation();
+      allowOneActivity(allowTarget, button, event);
+    });
+    actionCell.append(button);
+  } else {
+    actionCell.dataset.empty = 'true';
+  }
+
+  row.append(checkCell, timeCell, clientCell, domainCell, ipCell, portCell, verdictCell, categoryCell, nameCell, actionCell);
   // List layout (phones, tablets in portrait): tapping anywhere on the row toggles it.
   const box = checkCell.querySelector('input');
   if (box) {
@@ -218,7 +259,7 @@ function renderActivityRows() {
     : activityReadError ? '网络活动读取失败，请刷新重试。' : '正在读取网络活动…';
   const fragment = document.createDocumentFragment();
   if (!activity.loaded) {
-    fragment.append(activityReadError ? activityEmptyRow('网络活动读取失败，请刷新重试。') : skeletonRows(5, 9));
+    fragment.append(activityReadError ? activityEmptyRow('网络活动读取失败，请刷新重试。') : skeletonRows(5, 10));
   } else if (!activity.events.length) {
     fragment.append(activityEmptyRow(activity.hints.message || '暂无网关连接、DNS 查询或本机服务事件。', true));
   } else if (!visible.length) {
@@ -442,11 +483,13 @@ async function confirmActivityAllow() {
   buttonBusy('activity-allow-confirm', true, '正在放行…');
   const requestEpoch = epoch;
   let allowed = 0;
+  let lastResult = null;
   try {
     const result = await api('/api/allow', { targets });
     if (requestEpoch !== epoch) return;
     if (result.ok !== true) throw new ApiError('服务未确认放行结果，请刷新后检查。');
     allowed = targets.length;
+    lastResult = result;
     $('activity-allow-dialog').close();
   } catch (error) {
     if (requestEpoch !== epoch) return;
@@ -465,10 +508,44 @@ async function confirmActivityAllow() {
   }
   if (!allowed) return;
   activitySelected.clear();
-  toast(`已放行 ${allowed} 项，白名单已更新。`, 'success');
+  const merged = lastResult && lastResult.summary && lastResult.summary.domains
+    && Array.isArray(lastResult.summary.domains.merged_wildcards)
+    ? lastResult.summary.domains.merged_wildcards : [];
+  toast(merged.length ? `已放行 ${allowed} 项，并自动合并为 ${merged.join('、')}。` : `已放行 ${allowed} 项，白名单已更新。`, 'success');
   updateActivityControls();
   flushActivityPending();
   refreshActivity();
+}
+
+async function allowOneActivity(target, button, event) {
+  if (!authenticated || activityBusy) return;
+  activityBusy = true;
+  updateActivityControls();
+  button.disabled = true;
+  const orig = button.textContent;
+  button.textContent = '放行中…';
+  const requestEpoch = epoch;
+  const label = (event && (event.domain || event.dst)) || target.split(':').slice(1).join(':');
+  try {
+    const result = await api('/api/allow', { targets: [target] });
+    if (requestEpoch !== epoch) return;
+    if (result.ok !== true) throw new ApiError('服务未确认放行结果，请刷新后检查。');
+    activitySelected.delete(target);
+    if (event && event.target) activitySelected.delete(event.target);
+    toast(formatAllowToast(label, result), 'success');
+    refreshState({ forceConfig: !dirty });
+    if (actHistory.mode === 'history') loadHistory(true);
+    else refreshActivity();
+  } catch (error) {
+    if (requestEpoch !== epoch) return;
+    if (error.status === 401) { showLogin(error.message); return; }
+    toast(error.message || '放行失败。', 'error');
+    button.disabled = false;
+    button.textContent = orig;
+  } finally {
+    activityBusy = false;
+    updateActivityControls();
+  }
 }
 
 function openActivityLabelDialog() {
@@ -588,7 +665,7 @@ function renderHistory() {
 function emptyHistoryRow(text) {
   const row = document.createElement('tr');
   const cell = makeElement('td', 'empty-state', text);
-  cell.colSpan = 9;
+  cell.colSpan = 10;
   row.append(cell);
   return row;
 }

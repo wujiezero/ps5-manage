@@ -97,6 +97,145 @@ def domain_allowed(name, domains) -> bool:
     return any(name.endswith("." + rule[2:]) if rule.startswith("*.") else name == rule for rule in rules)
 
 
+_MULTI_LABEL_PUBLIC_SUFFIXES = frozenset({
+    "co.uk", "org.uk", "ac.uk", "gov.uk", "me.uk", "net.uk",
+    "com.cn", "net.cn", "org.cn", "gov.cn", "edu.cn", "ac.cn",
+    "co.jp", "ne.jp", "or.jp", "go.jp", "ac.jp", "gr.jp",
+    "com.hk", "org.hk", "edu.hk", "gov.hk", "idv.hk",
+    "com.tw", "org.tw", "net.tw", "edu.tw", "gov.tw",
+    "com.au", "net.au", "org.au", "edu.au", "gov.au",
+    "co.kr", "or.kr", "ne.kr", "com.br", "net.br", "org.br",
+    "com.sg", "org.sg", "edu.sg", "co.nz", "org.nz", "net.nz",
+})
+
+# Multi-tenant / shared mega-platforms whose 2-label apex must never be auto-wildcarded
+# just because two distinct customer subdomains appeared together.
+_PROTECTED_APEXES = frozenset({
+    "playstation.net", "playstation.com", "sonyentertainmentnetwork.com", "sony.com",
+    "github.com", "githubusercontent.com", "github.io",
+    "akamaihd.net", "akamaized.net", "akamai.net",
+    "cloudfront.net", "amazonaws.com", "fastly.net", "fastlylb.net",
+    "cloudflare.net", "azureedge.net", "googleapis.com", "gstatic.com",
+    "googleusercontent.com", "googlevideo.com",
+})
+
+
+def _is_mergeable_parent(parent: str) -> bool:
+    """Return True if *.parent is safe to synthesize from multiple sibling subdomains."""
+    labels = parent.split(".")
+    if len(labels) < 2 or parent in _MULTI_LABEL_PUBLIC_SUFFIXES:
+        return False
+    if len(labels) == 2 and parent in _PROTECTED_APEXES:
+        return False
+    return True
+
+
+def merge_domains(existing, incoming):
+    """Normalize, deduplicate, cover-prune, and collapse sibling subdomains into *.parent.
+
+    Returns ``(sorted_rules, summary)`` where ``summary`` records what happened for UI
+    feedback (``added``, ``merged_wildcards``, ``deduplicated``, ``covered``).
+    """
+    existing_norm = []
+    for raw in existing or ():
+        item = _domain(raw, wildcard=True)
+        if item not in existing_norm:
+            existing_norm.append(item)
+    existing_set = set(existing_norm)
+
+    incoming_norm, deduplicated = [], []
+    for raw in incoming or ():
+        item = _domain(raw, wildcard=True)
+        if item in existing_set or item in incoming_norm:
+            if item not in deduplicated:
+                deduplicated.append(item)
+        else:
+            incoming_norm.append(item)
+
+    pool = list(dict.fromkeys(existing_norm + incoming_norm))
+    covered = []
+    merged_wildcards = []
+
+    def prune_covered(rules):
+        wildcards = {r[2:] for r in rules if r.startswith("*.")}
+        kept = []
+        for r in rules:
+            bare = r[2:] if r.startswith("*.") else r
+            # Exact apex is NOT covered by *.apex per domain_allowed(), only deeper names are.
+            matched_by = next((w for w in wildcards if bare.endswith("." + w) and (r.startswith("*.") or bare != w)), None)
+            if matched_by and r != f"*.{matched_by}":
+                if r not in covered:
+                    covered.append(r)
+            else:
+                kept.append(r)
+        return kept
+
+    pool = prune_covered(pool)
+
+    # Collapse sibling subdomains (>= 2 distinct exact subdomains sharing a safe immediate parent)
+    # into *.parent. Iterate until no more safe sibling groups collapse.
+    changed = True
+    while changed:
+        changed = False
+        by_parent = {}
+        for r in pool:
+            if r.startswith("*.") or "." not in r:
+                continue
+            _, parent = r.split(".", 1)
+            if _is_mergeable_parent(parent):
+                by_parent.setdefault(parent, []).append(r)
+        for parent, children in sorted(by_parent.items(), key=lambda kv: -kv[0].count(".")):
+            if len(children) >= 2:
+                wildcard = f"*.{parent}"
+                if wildcard not in pool:
+                    pool.append(wildcard)
+                    if wildcard not in merged_wildcards:
+                        merged_wildcards.append(wildcard)
+                pool = prune_covered(pool)
+                changed = True
+                break
+
+    final_list = sorted(set(pool))
+    final_set = set(final_list)
+    added = [r for r in incoming_norm if r in final_set]
+    return final_list, {
+        "added": added,
+        "merged_wildcards": sorted(merged_wildcards),
+        "deduplicated": deduplicated,
+        "covered": covered,
+    }
+
+
+def merge_networks(existing, incoming):
+    """Normalize and mathematically collapse overlapping or adjacent IPv4 CIDRs."""
+    existing_nets = []
+    for raw in existing or ():
+        net = str(ipaddress.IPv4Network(raw, strict=False))
+        if net not in existing_nets:
+            existing_nets.append(net)
+    existing_set = set(existing_nets)
+
+    incoming_nets, deduplicated = [], []
+    for raw in incoming or ():
+        net = str(ipaddress.IPv4Network(raw, strict=False))
+        if net in existing_set or net in incoming_nets:
+            if net not in deduplicated:
+                deduplicated.append(net)
+        else:
+            incoming_nets.append(net)
+
+    objs = [ipaddress.IPv4Network(item, strict=False) for item in dict.fromkeys(existing_nets + incoming_nets)]
+    collapsed = [str(net) for net in ipaddress.collapse_addresses(objs)]
+    collapsed_set = set(collapsed)
+    added = [net for net in incoming_nets if net in collapsed_set]
+    merged_cidrs = [net for net in collapsed if net not in existing_set and net not in incoming_nets]
+    return collapsed, {
+        "added": added,
+        "collapsed": merged_cidrs,
+        "deduplicated": deduplicated,
+    }
+
+
 class Firewall:
     """Own only inet ps5guard. The runner has subprocess.run's call signature."""
 

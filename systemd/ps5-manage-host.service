@@ -1,7 +1,7 @@
 [Unit]
-Description=ps5-jb-server manuals host (PS5 User's Guide over HTTPS)
+Description=ps5-manage manuals host (PS5 User's Guide over HTTPS)
 Documentation=https://github.com/wujiezero/ps5-manage
-After=network-online.target ps5-jb-server.service
+After=network-online.target ps5-manage.service
 Wants=network-online.target
 
 [Service]

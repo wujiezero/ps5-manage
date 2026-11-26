@@ -52,7 +52,8 @@ def parse_ddp(text):
     state = {200: 'on', 620: 'standby'}.get(code, 'unknown')
     return {'code': code, 'state': state, 'host_type': headers.get('host-type', ''),
             'name': headers.get('host-name', ''), 'host_id': headers.get('host-id', ''),
-            'firmware': firmware, 'running_app': headers.get('running-app-name', '')}
+            'firmware': firmware, 'running_app': headers.get('running-app-name', ''),
+            'running_app_id': headers.get('running-app-titleid', '')}
 
 
 def ddp_search(targets, timeout=1.0):
@@ -158,17 +159,7 @@ class Discovery:
             self.known = self._load_known()
             self.extra = list(dict.fromkeys(list(self.known)[:32] + self.extra))[:64]
 
-    def _save_known(self, found):
-        """Record the hosts a scan found; caller holds self.lock."""
-        now = self.clock()
-        for host in found:
-            power = host.get('power') or {}
-            previous = self.known.get(host['ip'], {})
-            self.known[host['ip']] = {'name': power.get('name') or previous.get('name', ''),
-                                      'firmware': power.get('firmware') or previous.get('firmware', ''),
-                                      'last_seen': now}
-        self.known = {ip: record for ip, record in self.known.items()
-                      if now - record['last_seen'] <= self.FORGET_AFTER}
+    def _write_known_locked(self):
         if not self.hosts_path:
             return
         document = {'schema': 1, 'hosts': [{'ip': ip, **record} for ip, record in self.known.items()]}
@@ -181,11 +172,81 @@ class Discovery:
         except OSError as exc:
             logging.warning('could not save known PS5 hosts: %s', exc)
 
+    def _save_known(self, found):
+        """Record the hosts a scan found; caller holds self.lock."""
+        now = self.clock()
+        for host in found:
+            power = host.get('power') or {}
+            previous = self.known.get(host['ip'], {})
+            self.known[host['ip']] = {'name': power.get('name') or previous.get('name', ''),
+                                      'firmware': power.get('firmware') or previous.get('firmware', ''),
+                                      'last_seen': now}
+        self.known = {ip: record for ip, record in self.known.items()
+                      if now - record['last_seen'] <= self.FORGET_AFTER}
+        self._write_known_locked()
+
     def remember(self, ip):
         """Prefer addresses we already saw (activity page, manual add)."""
         with self.lock:
             if ip not in self.extra:
                 self.extra.insert(0, ip)
+
+    def remember_known(self, ip, name='', firmware=''):
+        """Persist a manually connected/paired/configured host across restarts & disconnects."""
+        try:
+            addr = ipaddress.IPv4Address(ip)
+        except ValueError:
+            return False
+        ip = str(addr)
+        now = self.clock()
+        with self.lock:
+            if addr not in self.subnet:
+                return False
+            self.remember(ip)
+            previous = self.known.get(ip, {})
+            changed = ip not in self.known or (name and name != previous.get('name')) or (
+                firmware and firmware != previous.get('firmware'))
+            self.known[ip] = {
+                'name': name or previous.get('name', ''),
+                'firmware': firmware or previous.get('firmware', ''),
+                'last_seen': now if changed or not previous.get('last_seen') else previous['last_seen'],
+            }
+            hosts = self.cached.setdefault('hosts', [])
+            if not any(item.get('ip') == ip for item in hosts):
+                hosts.append({'ip': ip, 'elfldr': False, 'pldmgr': False, 'loader': False,
+                              'power': None, 'remembered': True, **self.known[ip]})
+                hosts.sort(key=lambda item: ipaddress.IPv4Address(item['ip']))
+            self._write_known_locked()
+        return True
+
+    def touch(self, ip, power=None):
+        """Refresh name/firmware/last_seen in hosts.json when a host responds to overview/poll."""
+        info = power or {}
+        now = self.clock()
+        with self.lock:
+            previous = self.known.get(ip, {})
+            new_name = info.get('name') or previous.get('name', '')
+            new_fw = info.get('firmware') or previous.get('firmware', '')
+            # Write disk only when new host/metadata arrives or more than 60s elapsed since last write.
+            needs_disk = (ip not in self.known or new_name != previous.get('name', '')
+                          or new_fw != previous.get('firmware', '')
+                          or now - previous.get('last_seen', 0) >= 60)
+            self.known[ip] = {'name': new_name, 'firmware': new_fw, 'last_seen': now}
+            self.remember(ip)
+            if needs_disk:
+                self._write_known_locked()
+
+    def forget(self, ip):
+        """Remove a host from persisted known hosts and scan cache."""
+        with self.lock:
+            removed = self.known.pop(ip, None) is not None
+            self.extra = [item for item in self.extra if item != ip]
+            if isinstance(self.cached.get('hosts'), list):
+                before = len(self.cached['hosts'])
+                self.cached['hosts'] = [h for h in self.cached['hosts'] if h.get('ip') != ip]
+                removed = removed or len(self.cached['hosts']) != before
+            self._write_known_locked()
+        return removed
 
     def scan(self, extra_ips=()):
         # One sweep at a time: a manual scan waits for a background one.
@@ -207,7 +268,9 @@ class Discovery:
     def _scan(self, extra_ips=()):
         started = time.monotonic()
         addresses = []
-        for ip in list(extra_ips) + list(self.extra):
+        with self.lock:
+            prior_known = list(self.known)
+        for ip in list(extra_ips) + prior_known + list(self.extra):
             try:
                 address = str(ipaddress.IPv4Address(ip))
             except ValueError:
@@ -240,18 +303,24 @@ class Discovery:
 
         for ip in power:
             hits.setdefault(ip, set())
-        found = [{'ip': ip, 'elfldr': 'elfldr' in ports, 'pldmgr': 'pldmgr' in ports,
-                  'loader': 'loader' in ports, 'power': power.get(ip)}
-                 for ip, ports in sorted(hits.items(), key=lambda item: ipaddress.IPv4Address(item[0]))]
-        result = {'hosts': found, 'last_scan': _now(), 'scanned': len(addresses),
-                  'duration_ms': int((time.monotonic() - started) * 1000)}
+        responded = [{'ip': ip, 'elfldr': 'elfldr' in ports, 'pldmgr': 'pldmgr' in ports,
+                      'loader': 'loader' in ports, 'power': power.get(ip)}
+                     for ip, ports in hits.items()]
         with self.lock:
+            self._save_known(responded)
+            merged = {host['ip']: host for host in responded}
+            for ip, record in self.known.items():
+                if ip not in merged:
+                    merged[ip] = {'ip': ip, 'elfldr': False, 'pldmgr': False, 'loader': False,
+                                  'power': None, 'remembered': True, **record}
+            found = sorted(merged.values(), key=lambda item: ipaddress.IPv4Address(item['ip']))
+            result = {'hosts': found, 'last_scan': _now(), 'scanned': len(addresses),
+                      'duration_ms': int((time.monotonic() - started) * 1000)}
             self.cached = dict(result)
-            for host in found:
+            for host in responded:
                 if host['ip'] not in self.extra:
                     self.extra.append(host['ip'])
             self.extra = self.extra[:32]
-            self._save_known(found)
         return result
 
     def snapshot(self):
@@ -795,7 +864,7 @@ class HostManager:
 
     def _payload_bytes(self, filename, limit=64 << 20):
         url = self.manifest[filename]
-        request = urllib.request.Request(url, headers={'User-Agent': 'ps5-jb-server'})
+        request = urllib.request.Request(url, headers={'User-Agent': 'ps5-manage'})
         try:
             with urllib.request.urlopen(request, timeout=60) as response:
                 data = response.read(limit + 1)
@@ -818,6 +887,9 @@ class HostManager:
 
     def overview(self, refresh=True):
         summary = self.discovery.snapshot()
+        found = summary['hosts']
+        # Batch one UDP DDP probe for all known hosts so reconnect / standby state updates quickly.
+        ddp_replies = ddp_search([h['ip'] for h in found], timeout=0.8) if refresh and found else {}
 
         def build(host):
             entry = {'ip': host['ip'], 'online': True,
@@ -829,18 +901,16 @@ class HostManager:
                      'autoload': {'enabled': False, 'list': [], 'status': {}},
                      'last_error': None}
             if host.get('remembered'):
-                # Known from an earlier run; this restart's scan has not reached it yet.
                 entry.update(remembered=True, last_seen=host.get('last_seen'),
                              name=host.get('name') or '', firmware=host.get('firmware') or '')
             if not refresh:
                 return entry
-            # A console that went to rest mode keeps its scan entry; probe the
-            # ports first so a sleeping host costs a fraction of a second
-            # instead of several multi-second HTTP timeouts per page poll.
             entry['pldmgr'] = _tcp_open(host['ip'], self.pldmgr_port, 0.6)
             entry['elfldr'] = _tcp_open(host['ip'], self.elf_port, 0.6)
             entry['online'] = entry['pldmgr'] or entry['elfldr']
-            entry['power'] = self.power(host['ip'], entry['online'])
+            entry['power'] = self.power(host['ip'], entry['online'], reply=ddp_replies.get(host['ip']))
+            if entry['online'] or entry['power'].get('state') in ('on', 'standby'):
+                self.discovery.touch(host['ip'], entry['power'])
             if entry['pldmgr']:
                 try:
                     self._populate(entry)
@@ -848,7 +918,6 @@ class HostManager:
                     entry['last_error'] = str(exc)[:200]
             return entry
 
-        found = summary['hosts']
         if len(found) > 1:
             with concurrent.futures.ThreadPoolExecutor(max_workers=min(4, len(found))) as pool:
                 hosts = list(pool.map(build, found))
@@ -857,6 +926,23 @@ class HostManager:
         return {'discovery': {**summary, 'subnet': str(self.discovery.subnet),
                               'enabled': self.config.ps5_control},
                 'hosts': hosts}
+
+    def add_host(self, ip):
+        """Remember an IP in hosts.json and immediately probe its live TCP & DDP power state."""
+        ip = self.validate_ip(ip)
+        self.discovery.remember_known(ip)
+        entry = self.host(ip)
+        if entry.get('online') or (entry.get('power') or {}).get('state') in ('on', 'standby'):
+            self.discovery.touch(ip, entry.get('power'))
+        return entry
+
+    def forget_host(self, ip):
+        """Remove a remembered offline host from hosts.json."""
+        ip = self.validate_ip(ip)
+        removed = self.discovery.forget(ip)
+        with self.lock:
+            self.state.pop(ip, None)
+        return removed
 
     def _populate(self, entry):
         client = self._client(entry['ip'])
@@ -926,14 +1012,16 @@ class HostManager:
                 entry['last_error'] = str(exc)[:200]
         return entry
 
-    def power(self, ip, payload_online=False):
+    def power(self, ip, payload_online=False, reply=None):
         """on / standby / off, plus name and firmware when the console answers DDP."""
-        reply = ddp_search([ip], timeout=0.8).get(ip)
+        if reply is None:
+            reply = ddp_search([ip], timeout=0.8).get(ip)
         if reply:
             return {**reply, 'payload': bool(payload_online)}
         state = 'on' if payload_online else 'off'
         return {'code': 0, 'state': state, 'name': '', 'host_id': '', 'firmware': '',
-                'host_type': '', 'running_app': '', 'payload': bool(payload_online)}
+                'host_type': '', 'running_app': '', 'running_app_id': '',
+                'payload': bool(payload_online)}
 
     def install(self, ip, filename, run=False, keep_job=False, allow_elfldr=True):
         ip = self.validate_ip(ip)

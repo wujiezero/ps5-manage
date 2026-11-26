@@ -1,1 +1,1 @@
-"""Installer for ps5-jb-server (system install, upgrade, uninstall, doctor)."""
+"""Installer for ps5-manage (system install, upgrade, uninstall, doctor)."""

@@ -1,5 +1,5 @@
 #!/bin/sh
-# ps5-jb-server installer entry point.
+# ps5-manage installer entry point.
 #
 #   sudo ./install.sh              install or upgrade (keeps existing config/data)
 #   sudo ./install.sh --dry-run    print every action, change nothing

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Install ps5-jb-server on a Debian/Ubuntu LXC or VM.
+"""Install ps5-manage on a Debian/Ubuntu LXC or VM.
 
     sudo ./install.sh                 # install or upgrade
     sudo ./install.sh --dry-run       # print every action, change nothing
@@ -26,9 +26,12 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[1]
-UNIT_FILES = ('ps5-jb-server.service', 'ps5-jb-host.service', 'ps5-jb-repo.service')
-NFT_FILE = '90-ps5-jb-server.nft'
-SYSCTL_FILE = '90-ps5-jb-server.conf'
+UNIT_FILES = ('ps5-manage.service', 'ps5-manage-host.service', 'ps5-manage-repo.service')
+LEGACY_UNIT_FILES = ('ps5-jb-server.service', 'ps5-jb-host.service', 'ps5-jb-repo.service')
+NFT_FILE = '90-ps5-manage.nft'
+SYSCTL_FILE = '90-ps5-manage.conf'
+LEGACY_NFT_FILE = '90-ps5-jb-server.nft'
+LEGACY_SYSCTL_FILE = '90-ps5-jb-server.conf'
 PORT_NAMES = {'dns': 53, 'http': 80, 'https': 443, 'admin': 8443, 'repo': 8080}
 
 
@@ -38,7 +41,7 @@ class StepError(RuntimeError):
 
 def proxy_dropin_text(proxy):
     """systemd drop-in: the service reads the proxy from its environment."""
-    return ('# Written by the ps5-jb-server installer; delete this file for a direct connection.\n'
+    return ('# Written by the ps5-manage installer; delete this file for a direct connection.\n'
             '[Service]\n'
             f'Environment="http_proxy={proxy}"\n'
             f'Environment="https_proxy={proxy}"\n')
@@ -66,7 +69,7 @@ class Layout:
     upstream_dns: str = ''
     ports: dict = field(default_factory=lambda: dict(PORT_NAMES))
     systemd_dir: Path = Path('/etc/systemd/system')
-    access_file: Path = Path('/root/ps5-jb-server-access.txt')
+    access_file: Path = Path('/root/ps5-manage-access.txt')
     dry_run: bool = False
     no_firewall: bool = False
     no_services: bool = False
@@ -90,10 +93,10 @@ class Layout:
 
     def __post_init__(self):
         prefix = Path(self.prefix)
-        self.opt = prefix / 'opt/ps5-jb-server'
-        self.etc = prefix / 'etc/ps5-jb-server'
-        self.data = prefix / 'var/lib/ps5-jb-server'
-        self.repo = prefix / 'srv/ps5-jb-server'
+        self.opt = prefix / 'opt/ps5-manage'
+        self.etc = prefix / 'etc/ps5-manage'
+        self.data = prefix / 'var/lib/ps5-manage'
+        self.repo = prefix / 'srv/ps5-manage'
         self.certs = self.etc / 'tls'
         self.config = self.etc / 'config.toml'
         self.nft = prefix / 'etc/nftables.d' / NFT_FILE
@@ -101,11 +104,11 @@ class Layout:
         self.sysctl = prefix / 'etc/sysctl.d' / SYSCTL_FILE
         if prefix != Path('/'):
             self.systemd_dir = prefix / 'etc/systemd/system'
-            self.access_file = prefix / 'root/ps5-jb-server-access.txt'
+            self.access_file = prefix / 'root/ps5-manage-access.txt'
 
     @property
     def proxy_dropin(self):
-        return self.systemd_dir / 'ps5-jb-server.service.d' / 'proxy.conf'
+        return self.systemd_dir / 'ps5-manage.service.d' / 'proxy.conf'
 
 
 class Runner:
@@ -164,6 +167,14 @@ class Runner:
         if target.exists():
             shutil.rmtree(target)
         shutil.copytree(source, target)
+
+    def move_path(self, source, target):
+        self.actions.append(['move', str(source), str(target)])
+        if self.layout.dry_run:
+            print(f'  + move {source} -> {target}')
+            return
+        target.parent.mkdir(parents=True, exist_ok=True)
+        shutil.move(str(source), str(target))
 
 
 # ---------------------------------------------------------------- dependencies
@@ -488,19 +499,19 @@ def write_update_descriptor(layout, runner):
     from enable_web_updates import deployment_descriptor
     if layout.config.exists():
         descriptor = deployment_descriptor(layout.opt.resolve(), layout.config.resolve(),
-                                           'ps5-jb-server.service', 'ps5-jb-repo.service', 'ps5-jb-host.service')
+                                           'ps5-manage.service', 'ps5-manage-repo.service', 'ps5-manage-host.service')
     else:
         descriptor = {'schema': 1, 'program_dir': str(layout.opt.resolve()),
                       'static_dir': str((layout.opt / 'web').resolve()),
                       'data_dir': str(layout.data.resolve()), 'config_path': str(layout.config.resolve()),
-                      'admin_unit': 'ps5-jb-server.service', 'repo_unit': 'ps5-jb-repo.service',
-                      'host_unit': 'ps5-jb-host.service', 'health_url': f'https://{layout.host_ip}:{layout.ports["admin"]}/api/version'}
+                      'admin_unit': 'ps5-manage.service', 'repo_unit': 'ps5-manage-repo.service',
+                      'host_unit': 'ps5-manage-host.service', 'health_url': f'https://{layout.host_ip}:{layout.ports["admin"]}/api/version'}
     runner.write(layout.opt / 'update-install.json', json.dumps(descriptor, indent=2), 0o644)
 
 
 def make_certificates(layout, runner):
     print('\n[3/9] 自签证书')
-    targets = (('admin', 'ps5-jb-server',
+    targets = (('admin', 'ps5-manage',
                 f'IP:{layout.host_ip},DNS:localhost'),
                ('manuals', 'manuals.playstation.net',
                 f'DNS:manuals.playstation.net,DNS:ena.net.playstation.net,'
@@ -576,7 +587,7 @@ def fetch_components(layout, runner):
                     '--repo-dir', str(layout.repo), '--base-url', base],
                    check=False, capture=False)
     if not catalog.exists() and not layout.dry_run:
-        runner.write(catalog, json.dumps({'name': 'ps5-jb-server', 'payloads': []},
+        runner.write(catalog, json.dumps({'name': 'ps5-manage', 'payloads': []},
                                          ensure_ascii=False, indent=1) + '\n', 0o644)
     report_payloads(layout, runner)
 
@@ -628,7 +639,7 @@ def install_power_engine(layout, runner):
     if layout.no_services:
         return
     unit = (REPO / 'systemd' / 'ps5upload-engine.service').read_text()
-    unit = unit.replace('/etc/ps5-jb-server/', str(layout.etc) + '/')
+    unit = unit.replace('/etc/ps5-manage/', str(layout.etc) + '/')
     unit = unit.replace('/opt/ps5upload-engine/', str(engine_dir) + '/')
     runner.write(layout.systemd_dir / 'ps5upload-engine.service', unit, 0o644)
     runner.run(['systemctl', 'daemon-reload'], check=False)
@@ -675,7 +686,7 @@ def sha256(path):
 
 def download(url, target, expected, runner):
     print(f'  downloading {url}')
-    request = urllib.request.Request(url, headers={'User-Agent': 'ps5-jb-server-installer'})
+    request = urllib.request.Request(url, headers={'User-Agent': 'ps5-manage-installer'})
     target.parent.mkdir(parents=True, exist_ok=True)
     tmp = target.with_suffix('.part')
     try:
@@ -705,9 +716,9 @@ def write_firewall(layout, runner):
     include = f'include "{layout.nft}"'.replace(str(layout.prefix), '') if layout.prefix != Path('/') \
         else f'include "{layout.nft}"'
     if include not in text:
-        text = text.rstrip('\n') + '\n\n# ps5-jb-server baseline: default-deny until the manager starts\n' + include + '\n'
+        text = text.rstrip('\n') + '\n\n# ps5-manage baseline: default-deny until the manager starts\n' + include + '\n'
         runner.write(layout.nftables_conf, text, 0o644)
-    runner.write(layout.sysctl, f'''# ps5-jb-server: IPv4 gateway stays closed until a valid ruleset is loaded.
+    runner.write(layout.sysctl, f'''# ps5-manage: IPv4 gateway stays closed until a valid ruleset is loaded.
 net.ipv4.ip_forward=0
 net.ipv4.conf.all.send_redirects=0
 net.ipv4.conf.default.send_redirects=0
@@ -760,8 +771,8 @@ def install_units(layout, runner):
     if descriptor_path.exists():
         descriptor = json.loads(descriptor_path.read_text())
     else:
-        descriptor = {'program_dir': str(layout.opt), 'admin_unit': 'ps5-jb-server.service',
-                      'repo_unit': 'ps5-jb-repo.service', 'host_unit': 'ps5-jb-host.service'}
+        descriptor = {'program_dir': str(layout.opt), 'admin_unit': 'ps5-manage.service',
+                      'repo_unit': 'ps5-manage-repo.service', 'host_unit': 'ps5-manage-host.service'}
     for name, text in recovery_units(descriptor).items():
         runner.write(layout.systemd_dir / name, text, 0o644)
     if layout.proxy:
@@ -769,9 +780,9 @@ def install_units(layout, runner):
         runner.write(layout.proxy_dropin, proxy_dropin_text(layout.proxy), 0o644)
         runner.note(f'代理：{layout.proxy}（服务更新与插件上游经由它；PS5/NAS 直连）')
     runner.run(['systemctl', 'daemon-reload'], check=False)
-    runner.run(['systemctl', 'enable', '--now', 'ps5-jb-server.service'], check=False)
-    runner.run(['systemctl', 'enable', '--now', 'ps5-jb-host.service'], check=False)
-    runner.run(['systemctl', 'enable', '--now', 'ps5-jb-repo.service'], check=False)
+    runner.run(['systemctl', 'enable', '--now', 'ps5-manage.service'], check=False)
+    runner.run(['systemctl', 'enable', '--now', 'ps5-manage-host.service'], check=False)
+    runner.run(['systemctl', 'enable', '--now', 'ps5-manage-repo.service'], check=False)
 
 
 def health(layout, runner):
@@ -791,7 +802,7 @@ def health(layout, runner):
         print(f'  {"OK " if good else "FAIL"} {name}: HTTP {code}')
         ok = ok and good
     if not ok:
-        print('  某些检查未通过，请查看 journalctl -u ps5-jb-server -n 50')
+        print('  某些检查未通过，请查看 journalctl -u ps5-manage -n 50')
     return ok
 
 
@@ -822,11 +833,71 @@ def summary(layout):
   插件目录   {layout.repo / 'payloads'}
 
   PS5 设置：默认网关与首选 DNS 都填 {layout.host_ip}，本机 IP 保持自动获取。
-  服务状态：systemctl status ps5-jb-server ps5-jb-host ps5-jb-repo
+  服务状态：systemctl status ps5-manage ps5-manage-host ps5-manage-repo
 ''')
 
 
 # ---------------------------------------------------------------- commands
+
+def _rewrite_legacy_config_paths(text):
+    for old, new in (('/opt/ps5-jb-server', '/opt/ps5-manage'),
+                     ('/etc/ps5-jb-server', '/etc/ps5-manage'),
+                     ('/var/lib/ps5-jb-server', '/var/lib/ps5-manage'),
+                     ('/srv/ps5-jb-server', '/srv/ps5-manage')):
+        text = text.replace(old, new)
+    return text
+
+
+def migrate_legacy_layout(layout, runner):
+    """Migrate an existing ps5-jb-server install on upgrade to ps5-manage paths & units."""
+    prefix = Path(layout.prefix)
+    legacy_etc = prefix / 'etc/ps5-jb-server'
+    legacy_data = prefix / 'var/lib/ps5-jb-server'
+    legacy_repo = prefix / 'srv/ps5-jb-server'
+    legacy_opt = prefix / 'opt/ps5-jb-server'
+    legacy_access = prefix / 'root/ps5-jb-server-access.txt'
+    if not any(p.exists() for p in (legacy_etc, legacy_data, legacy_repo, legacy_opt)):
+        return
+    if any(p.exists() for p in (layout.etc, layout.data, layout.repo)):
+        return
+    print('\n[*] 迁移旧版 ps5-jb-server 部署到 ps5-manage')
+    legacy_proxy = layout.systemd_dir / 'ps5-jb-server.service.d/proxy.conf'
+    if legacy_proxy.exists() and not layout.proxy and not layout.proxy_dropin.exists():
+        runner.move_path(legacy_proxy, layout.proxy_dropin)
+    if not layout.no_services:
+        for unit in LEGACY_UNIT_FILES:
+            runner.run(['systemctl', 'disable', '--now', unit], check=False)
+        for name in (*LEGACY_UNIT_FILES,
+                     'ps5-jb-server-update-recovery.service',
+                     'ps5-jb-server.service.d/update-recovery.conf',
+                     'ps5-jb-repo.service.d/update-recovery.conf',
+                     'ps5-jb-server.service.d/proxy.conf'):
+            path = layout.systemd_dir / name
+            if path.exists():
+                runner.run(['rm', '-f', str(path)], check=False)
+        runner.run(['systemctl', 'daemon-reload'], check=False)
+    for src, dst in ((legacy_etc, layout.etc), (legacy_data, layout.data),
+                     (legacy_repo, layout.repo), (legacy_access, layout.access_file)):
+        if src.exists() and not dst.exists():
+            runner.move_path(src, dst)
+    if (layout.config).exists() and not layout.dry_run:
+        updated = _rewrite_legacy_config_paths(layout.config.read_text())
+        runner.write(layout.config, updated, 0o644)
+    legacy_nft = prefix / 'etc/nftables.d' / LEGACY_NFT_FILE
+    legacy_sysctl = prefix / 'etc/sysctl.d' / LEGACY_SYSCTL_FILE
+    if layout.nftables_conf.exists() and not layout.dry_run:
+        text = layout.nftables_conf.read_text()
+        if LEGACY_NFT_FILE in text:
+            runner.write(layout.nftables_conf,
+                         '\n'.join(line for line in text.splitlines() if LEGACY_NFT_FILE not in line) + '\n')
+    for old_file in (legacy_nft, legacy_sysctl):
+        if old_file.exists():
+            runner.run(['rm', '-f', str(old_file)], check=False)
+    if (legacy_opt / 'host.py').is_file() and not (layout.opt / 'host.py').exists():
+        runner.copy_file(legacy_opt / 'host.py', layout.opt / 'host.py')
+    if legacy_opt.exists():
+        runner.run(['rm', '-rf', str(legacy_opt)], check=False)
+
 
 def cmd_install(layout):
     runner = Runner(layout)
@@ -834,6 +905,7 @@ def cmd_install(layout):
         # fetch_payloads.py and the manuals host downloader run as children.
         os.environ['http_proxy'] = layout.proxy
         os.environ['https_proxy'] = layout.proxy
+    migrate_legacy_layout(layout, runner)
     preflight(layout, runner)
     steps = [install_files, write_config, write_update_descriptor, make_certificates, make_credentials, make_nas_key,
              fetch_components, write_firewall, install_units, install_power_engine, install_extract]
@@ -846,13 +918,17 @@ def cmd_install(layout):
 def cmd_uninstall(layout, purge=False, runner=None):
     runner = runner or Runner(layout)
     print('停止并禁用服务')
-    for unit in UNIT_FILES:
+    for unit in (*UNIT_FILES, *LEGACY_UNIT_FILES):
         runner.run(['systemctl', 'disable', '--now', unit], check=False)
-    extra_names = ('ps5-jb-server-update-recovery.service',
+    extra_names = ('ps5-manage-update-recovery.service',
+                   'ps5-manage.service.d/update-recovery.conf',
+                   'ps5-manage-repo.service.d/update-recovery.conf',
+                   'ps5-manage.service.d/proxy.conf',
+                   'ps5-jb-server-update-recovery.service',
                    'ps5-jb-server.service.d/update-recovery.conf',
                    'ps5-jb-repo.service.d/update-recovery.conf',
                    'ps5-jb-server.service.d/proxy.conf')
-    for unit in UNIT_FILES:
+    for unit in (*UNIT_FILES, *LEGACY_UNIT_FILES):
         path = layout.systemd_dir / unit
         if path.exists():
             runner.run(['rm', '-f', str(path)], check=False)
@@ -864,10 +940,13 @@ def cmd_uninstall(layout, purge=False, runner=None):
     if layout.nftables_conf.exists() and not layout.dry_run:
         text = layout.nftables_conf.read_text()
         include = f'include "{layout.nft}"'
-        if include in text:
+        if include in text or LEGACY_NFT_FILE in text:
             runner.write(layout.nftables_conf,
-                         '\n'.join(line for line in text.splitlines() if include not in line) + '\n')
-    for path in (layout.nft, layout.sysctl):
+                         '\n'.join(line for line in text.splitlines()
+                                   if include not in line and LEGACY_NFT_FILE not in line) + '\n')
+    legacy_nft = Path(layout.prefix) / 'etc/nftables.d' / LEGACY_NFT_FILE
+    legacy_sysctl = Path(layout.prefix) / 'etc/sysctl.d' / LEGACY_SYSCTL_FILE
+    for path in (layout.nft, layout.sysctl, legacy_nft, legacy_sysctl):
         if path.exists():
             runner.run(['rm', '-f', str(path)], check=False)
     runner.run(['sysctl', '-w', 'net.ipv4.ip_forward=0'], check=False)
@@ -907,7 +986,7 @@ def offline_checks(layout, probes=None):
 
 
 def cmd_doctor(layout):
-    print('ps5-jb-server doctor\n')
+    print('ps5-manage doctor\n')
     print(f'  仓库副本     {REPO}')
     print(f'  安装目录     {layout.opt} {"存在" if layout.opt.exists() else "缺失"}')
     print(f'  配置文件     {layout.config} {"存在" if layout.config.exists() else "缺失"}')
@@ -957,7 +1036,7 @@ def cmd_reset_password(layout):
                  f'仅需密码登录，没有用户名。\n管理密码：{password}\n', 0o600)
     print(f'新密码已写入 {layout.access_file}')
     if not layout.no_services:
-        Runner(layout).run(['systemctl', 'restart', 'ps5-jb-server.service'], check=False)
+        Runner(layout).run(['systemctl', 'restart', 'ps5-manage.service'], check=False)
 
 
 def build_layout(args):
@@ -977,7 +1056,7 @@ def build_layout(args):
 
 
 def main(argv=None):
-    parser = argparse.ArgumentParser(prog='install.sh', description='ps5-jb-server installer')
+    parser = argparse.ArgumentParser(prog='install.sh', description='ps5-manage installer')
     parser.add_argument('command', nargs='?', default='install',
                         choices=['install', 'upgrade', 'uninstall', 'doctor', 'reset-password'])
     parser.add_argument('--prefix', default='/', help='install everything under this directory (testing)')

@@ -440,13 +440,15 @@ class FlowObserver:
         # by the whitelist right now, so a row can say 已放行 / 已移出白名单.
         if merged.get('kind') == 'service':
             merged['allowed_now'] = True
-        elif merged.get('dst'):
-            merged['allowed_now'] = bool(self.is_allowed(merged['dst']))
-        elif merged.get('kind') == 'dns' and self.domain_allowed and merged.get('domain'):
+        elif merged.get('dst') and self.is_allowed(merged['dst']):
+            merged['allowed_now'] = True
+        elif self.domain_allowed and merged.get('domain') and not merged.get('local'):
             try:
                 merged['allowed_now'] = bool(self.domain_allowed(merged['domain']))
             except Exception:
-                merged['allowed_now'] = bool(merged.get('allowed_now'))
+                merged['allowed_now'] = bool(merged.get('dst') and self.is_allowed(merged['dst']))
+        elif merged.get('dst'):
+            merged['allowed_now'] = bool(self.is_allowed(merged['dst']))
         else:
             merged['allowed_now'] = bool(merged.get('allowed_now'))
         label = self.labels.get(event['target'])

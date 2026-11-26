@@ -195,7 +195,7 @@ def _cert_status(days):
 def check_certificates(ctx):
     now = datetime.datetime.now(datetime.timezone.utc)
     parts, statuses, fixes = [], [], []
-    certs = Path(ctx.get('cert_dir', '/etc/ps5-jb-server/tls'))
+    certs = Path(ctx.get('cert_dir', '/etc/ps5-manage/tls'))
     try:
         der = ctx.probes.peer_cert(ctx.get('host_ip'), ctx.get('https_port', 443), MANUALS_SNI)
         days, names = _cert_days(der, now)
@@ -211,7 +211,7 @@ def check_certificates(ctx):
     except Exception as exc:
         statuses.append('fail')
         parts.append(f'用户手册站点（{ctx.get("https_port", 443)} 端口）连不上：{exc.__class__.__name__}')
-        fixes.append('检查用户手册服务 ps5-jb-host 是否在运行')
+        fixes.append('检查用户手册服务 ps5-manage-host 是否在运行')
     try:
         days, _ = _cert_days(ctx.probes.read_bytes(certs / 'admin.crt'), now)
         statuses.append(_cert_status(days))
@@ -230,7 +230,7 @@ def check_repo(ctx):
         document = json.loads(ctx.probes.http_get(url))
         count = len(document.get('payloads') or [])
     except Exception as exc:
-        return result('fail', f'{url} 读不到：{exc.__class__.__name__}', '检查插件仓库服务 ps5-jb-repo 是否在运行')
+        return result('fail', f'{url} 读不到：{exc.__class__.__name__}', '检查插件仓库服务 ps5-manage-repo 是否在运行')
     missing = []
     if ctx.repo is not None:
         missing = [item['filename'] for item in ctx.repo.summary().get('items', [])
@@ -384,7 +384,7 @@ def check_components(ctx):
 
 
 def check_resources(ctx):
-    data = Path(ctx.get('data_dir', '/var/lib/ps5-jb-server'))
+    data = Path(ctx.get('data_dir', '/var/lib/ps5-manage'))
     parts, statuses, fixes = [], [], []
     try:
         free = ctx.probes.disk_free(data)

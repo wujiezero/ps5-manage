@@ -102,7 +102,7 @@ class FakeProbes:
 
 def settings(**extra):
     base = dict(host_ip=HOST, subnet='192.0.2.0/24', dns_port=53, https_port=443, repo_port=8080,
-                cert_dir=Path('/etc/ps5-jb-server/tls'), data_dir=Path('/var/lib/ps5-jb-server'),
+                cert_dir=Path('/etc/ps5-manage/tls'), data_dir=Path('/var/lib/ps5-manage'),
                 interface='eth0', upstream_dns='192.0.2.1', engine_url='http://127.0.0.1:19113')
     base.update(extra)
     return SimpleNamespace(**base)
@@ -148,7 +148,7 @@ class CheckTests(unittest.TestCase):
         self.assertIn('不含 manuals.playstation.net', outcome['detail'])
         outcome = single('certificates', context(FakeProbes(cert=ConnectionRefusedError())))
         self.assertEqual(outcome['status'], 'fail')
-        self.assertIn('ps5-jb-host', outcome['fix'])
+        self.assertIn('ps5-manage-host', outcome['fix'])
         outcome = single('certificates', context(FakeProbes(admin_cert=make_cert(5, pem=True))))
         self.assertEqual(outcome['status'], 'warn')
         self.assertIn('admin.crt', outcome['fix'])
@@ -221,11 +221,11 @@ class CheckTests(unittest.TestCase):
         self.assertIn('***@', outcome['detail'])
 
     def test_resources(self):
-        units = lambda: {'server': {'name': 'ps5-jb-server', 'state': 'active'},  # noqa: E731
-                         'repo': {'name': 'ps5-jb-repo', 'state': 'failed'}}
+        units = lambda: {'server': {'name': 'ps5-manage', 'state': 'active'},  # noqa: E731
+                         'repo': {'name': 'ps5-manage-repo', 'state': 'failed'}}
         outcome = single('resources', context(FakeProbes(free=100 << 20, can_write=False), units=units))
         self.assertEqual(outcome['status'], 'fail')
-        self.assertIn('ps5-jb-repo=failed', outcome['detail'])
+        self.assertIn('ps5-manage-repo=failed', outcome['detail'])
         self.assertIn('200 MB', outcome['fix'])
 
 

@@ -52,9 +52,11 @@ function fixture(extra = {}) {
       return nodes.get(id);
     },
     // Only the title-name labels are looked up by selector in these tests.
+    querySelector() { return null; },
     querySelectorAll(selector) { return selector.startsWith('.title-name') ? labels : []; },
     createElement: (tag) => new Element(tag),
     createElementNS: (_, tag) => new Element(tag),
+    createTextNode: (text) => ({ tagName: '#text', textContent: String(text), children: [] }),
     createDocumentFragment: () => new Element('fragment'),
     body: new Element('body')
   };
@@ -69,7 +71,8 @@ function fixture(extra = {}) {
   assert.ok(startup > 0, 'browser module startup must be identifiable');
   const exposed = `${source.slice(0, startup)}
     globalThis.subject = { activity, repo, activitySelected, activityVisibleEvents,
-      normalizeActivity, activityRow, renderBuiltinDomains,
+      normalizeActivity, applyActivity, activityRow, activityAllowTarget, formatAllowToast, renderBuiltinDomains,
+      renderOverviewServices, renderOverviewTelemetry,
       setActivityFilter, renderRepo, renderPs5Catalog,
       files, filesRow, nasRow, filesVisibleEntries, titleIdOf, titleNames, flushTitleNames, normalizeFilesEntries,
       nas, nasArchiveSelection, extractTask, packageTask, filesTransferTasks, filesTransferCard, normalizePs5,
@@ -935,7 +938,7 @@ test('restore results are listed as text with their state; backup names are sani
   assert.equal(list.children[0].textContent, '访问策略：已恢复 · 已应用');
   assert.equal(list.children[1].dataset.state, 'failed', 'unknown states show as failures');
   assert.match(list.children[1].textContent, /<b>x<\/b>/, 'server text stays text');
-  assert.equal(ui.backupFilename('attachment; filename="ps5-jb-backup-1.tar.gz"', 'x'), 'ps5-jb-backup-1.tar.gz');
+  assert.equal(ui.backupFilename('attachment; filename="ps5-manage-backup-1.tar.gz"', 'x'), 'ps5-manage-backup-1.tar.gz');
   assert.equal(ui.backupFilename('attachment; filename="../evil"', 'fallback.tar.gz'), 'fallback.tar.gz');
   ui.renderRestoreResult({});
   assert.equal(list.hidden, true);
@@ -1026,4 +1029,55 @@ test('hosts remembered from an earlier run are marked until the scan reaches the
   assert.equal(hosts[0].lastSeen, 1800000000 * 1000);
   assert.equal(hosts[0].rememberedName, 'Den');
   assert.equal(hosts[1].remembered, false, 'older servers omit the field');
+});
+
+test('activity rows render 10th action cell with one-click 放行 preferring domain', () => {
+  const ui = fixture();
+  ui.applyActivity(ui.normalizeActivity({ events: [
+    { kind: 'flow', domain: 'api.example.com', dst: '203.0.113.5', port: 443, verdict: 'blocked', allowed_now: false },
+    { kind: 'dns', domain: 'manuals.playstation.net', verdict: 'allowed', local: true, allowed_now: true },
+    { kind: 'flow', domain: 'ok.example.com', dst: '203.0.113.8', port: 443, verdict: 'allowed', allowed_now: true }
+  ] }));
+  const rows = ui.node('activity-body').children;
+  assert.equal(rows[0].children.length, 10);
+  const btn = rows[0].children[9].children[0];
+  assert.equal(btn.textContent, '放行');
+  assert.equal(ui.activityAllowTarget(ui.activity.events[0]), 'domain:api.example.com');
+  assert.equal(rows[1].children[9].children[0].textContent, '内置域名');
+  assert.equal(rows[2].children[9].children[0].textContent, '已放行');
+  assert.match(ui.formatAllowToast('b.example.com', { summary: { domains: { merged_wildcards: ['*.example.com'] } } }), /\*\.example\.com/);
+});
+
+test('overview service cards render web links in new tab and protocol cards as copy buttons', () => {
+  const ui = fixture();
+  ui.renderOverviewServices({
+    host: '192.0.2.50', online: true, scanned_ports: 17,
+    services: [
+      { port: 8084, protocol: 'http', web: true, name: 'Payload Manager', description: 'Web panel', repo: 'itsPLK/ps5-payload-manager', url: 'http://192.0.2.50:8084/' },
+      { port: 2120, protocol: 'ftp', web: false, name: 'FTP Server', description: 'zftpd', repo: 'zftpd', url: 'ftp://192.0.2.50:2120/' }
+    ]
+  });
+  const grid = ui.node('overview-services-grid');
+  assert.equal(grid.children.length, 2);
+  assert.equal(grid.children[0].tagName, 'a');
+  assert.equal(grid.children[0].target, '_blank');
+  assert.equal(grid.children[0].rel, 'noopener noreferrer');
+  assert.equal(grid.children[1].tagName, 'button');
+  assert.match(textOf(grid.children[1]), /复制地址/);
+});
+
+test('overview telemetry cards render cpu, memory, storage thresholds and game fps', () => {
+  const ui = fixture();
+  ui.renderOverviewTelemetry({
+    host: '192.0.2.50', engine_available: true, has_hw: true, firmware: '9.60',
+    cpu: { freq_ghz: 3.2, cores: 16, temp_c: 78.0, soc_temp_c: 77.0, power_w: 214.2, load_pct: 16, fan_pct: 23 },
+    memory: { used_bytes: 10.5 * 1073741824, total_bytes: 16 * 1073741824, direct_bytes: 12.3 * 1073741824, swap_bytes: 3.6 * 1048576, wired_bytes: 766 * 1048576, used_pct: 65.4 },
+    volumes: [{ label: '扩展 M.2 存储', path: '/mnt/ext0', used_bytes: 915 * 1073741824, total_bytes: 954 * 1073741824, free_bytes: 39 * 1073741824, percent: 95.9 }],
+    game: { running: true, title_id: 'PPSA26344', name: '羊蹄山之魂', title_en: 'Ghost of Yōtei', developer: 'Sucker Punch Productions', fps: 40 }
+  });
+  assert.equal(ui.node('telemetry-cpu-freq').textContent, '3.20 GHz');
+  assert.equal(ui.node('telemetry-cpu-temp').textContent, '78.0°C');
+  assert.equal(ui.node('telemetry-fps-val').textContent, '40');
+  assert.equal(ui.node('telemetry-game-name').textContent, '羊蹄山之魂');
+  assert.match(textOf(ui.node('overview-storage-list')), /95\.9%/);
 });

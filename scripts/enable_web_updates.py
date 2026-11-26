@@ -38,7 +38,7 @@ def deployment_descriptor(program, config, admin_unit, repo_unit=None, host_unit
         raw = tomllib.load(stream)
     paths = raw.get('paths') or {}
     static = checked_path(paths.get('static', str(program / 'web')))
-    data = checked_path(paths.get('data', '/var/lib/ps5-jb-server'))
+    data = checked_path(paths.get('data', '/var/lib/ps5-manage'))
     if program not in static.parents:
         raise ValueError('前端目录必须位于程序目录中')
     if data == program or program in data.parents or data in program.parents:
@@ -85,7 +85,7 @@ def recovery_units(descriptor):
         return '"' + str(value).replace('\\', '\\\\').replace('"', '\\"').replace('%', '%%') + '"'
     worker = Path(descriptor['program_dir']) / 'update_worker.py'
     deployment = Path(descriptor['program_dir']) / 'update-install.json'
-    text = ('[Unit]\nDescription=Recover interrupted ps5-jb-server update\n'
+    text = ('[Unit]\nDescription=Recover interrupted ps5-manage update\n'
             'After=local-fs.target\nBefore=' + ' '.join(units) + '\n\n'
             '[Service]\nType=oneshot\nExecStart=/usr/bin/python3 ' + quoted(worker) +
             ' --recover ' + quoted(deployment) + '\nTimeoutStartSec=120\n')

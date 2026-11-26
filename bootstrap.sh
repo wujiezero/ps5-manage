@@ -1,5 +1,5 @@
 #!/bin/sh
-# Fetch ps5-jb-server and run the installer.
+# Fetch ps5-manage and run the installer.
 #
 #   curl -fsSL https://raw.githubusercontent.com/wujiezero/ps5-manage/main/bootstrap.sh | sudo sh
 #   curl -fsSL ... | sudo sh -s -- --dry-run
@@ -7,10 +7,10 @@
 # git, python3 and CA certificates are installed automatically when missing
 # (apt/dnf/yum/apk/pacman/zypper); pass --no-deps to only report them.
 #
-# Environment: PS5JB_REF (default main), PS5JB_DIR (default /opt/ps5-jb-server-src)
+# Environment: PS5_MANAGE_REF (or PS5JB_REF, default main), PS5_MANAGE_DIR (or PS5JB_DIR, default /opt/ps5-manage-src)
 set -eu
-ref=${PS5JB_REF:-main}
-dir=${PS5JB_DIR:-/opt/ps5-jb-server-src}
+ref=${PS5_MANAGE_REF:-${PS5JB_REF:-main}}
+dir=${PS5_MANAGE_DIR:-${PS5JB_DIR:-/opt/ps5-manage-src}}
 repo=https://github.com/wujiezero/ps5-manage
 
 if [ "$(id -u)" -ne 0 ]; then

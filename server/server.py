@@ -599,26 +599,34 @@ class Application(_ConsoleMixin):
         self.activity = activity
         self.started = time.monotonic()
 
-    def allow(self, targets):
-        """Add selected flows to the whitelist and apply immediately."""
+    def allow_with_summary(self, targets):
+        """Add selected flows to the whitelist, normalizing & merging rules, and apply immediately."""
+        from policy import merge_domains, merge_networks
         additions = self.activity.allow_targets(targets or [])
         current = self.engine.store.snapshot()
+        domains, dom_summary = merge_domains(current['domains'], additions['domains'])
+        networks, net_summary = merge_networks(current['networks'], additions['networks'])
         merged = {
-            'domains': sorted(set(current['domains']) | set(additions['domains'])),
-            'networks': sorted(set(current['networks']) | set(additions['networks'])),
+            'domains': domains,
+            'networks': networks,
             'upstream_dns': current['upstream_dns'],
         }
         self.engine.change_config(merged)
-        return self.engine.store.snapshot()
+        return self.engine.store.snapshot(), {'domains': dom_summary, 'networks': net_summary}
+
+    def allow(self, targets):
+        """Add selected flows to the whitelist and apply immediately."""
+        snapshot, _ = self.allow_with_summary(targets)
+        return snapshot
 
     def change(self, body=None, rollback=False):
         self.engine.change_config(body, rollback)
 
-    # Fresh installs use ps5-jb-*, the original deployment ps5-*.
+    # Fresh installs use ps5-manage-*, previous installs ps5-jb-*, original deployment ps5-*.
     UNIT_CANDIDATES = {
-        'server': ('ps5-jb-server.service', 'ps5-manager.service'),
-        'host': ('ps5-jb-host.service', 'ps5-host.service'),
-        'repo': ('ps5-jb-repo.service', 'ps5-repo.service'),
+        'server': ('ps5-manage.service', 'ps5-jb-server.service', 'ps5-manager.service'),
+        'host': ('ps5-manage-host.service', 'ps5-jb-host.service', 'ps5-host.service'),
+        'repo': ('ps5-manage-repo.service', 'ps5-jb-repo.service', 'ps5-repo.service'),
     }
     UNIT_TTL = 30
 
@@ -1283,7 +1291,12 @@ class AdminHandler(BaseHTTPRequestHandler):
             raise ValueError('请选择要放行的条目')
         if len(targets) > 200:
             raise ValueError('一次最多放行 200 项')
-        self.send_body(200, {'ok': True, 'config': self.server.app.allow(targets)})
+        app = self.server.app
+        if hasattr(app, 'allow_with_summary'):
+            config, summary = app.allow_with_summary(targets)
+            self.send_body(200, {'ok': True, 'config': config, 'summary': summary})
+        else:
+            self.send_body(200, {'ok': True, 'config': app.allow(targets)})
 
     def post_repo_update(self, body):
         self.server.repo.update(body.get('filename'),
@@ -1685,7 +1698,7 @@ def update_busy(console):
 
 def main():
     parser = argparse.ArgumentParser()
-    # Unset flags fall back to /etc/ps5-jb-server/config.toml (then env, then detection).
+    # Unset flags fall back to /etc/ps5-manage/config.toml (or legacy /etc/ps5-jb-server/config.toml).
     parser.add_argument('--data-dir')
     parser.add_argument('--ip')
     parser.add_argument('--admin-port', type=int)
@@ -1694,9 +1707,9 @@ def main():
     parser.add_argument('--lan')
     parser.add_argument('--cert')
     parser.add_argument('--key')
-    parser.add_argument('--config', default='/etc/ps5-jb-server/config.toml')
+    parser.add_argument('--config', default='')
     args = parser.parse_args()
-    settings = Settings.load(args.config)
+    settings = Settings.load(args.config or None)
     data_dir = Path(args.data_dir) if args.data_dir else settings.data_dir
     repo_dir = Path(args.repo_dir) if args.repo_dir else settings.repo_dir
     host_ip = args.ip or settings.host_ip
@@ -1749,6 +1762,7 @@ def main():
     admin.app.titles = TitleCatalog(settings.titles_path, data / 'titles-cache.json',
                                     reader=proxy_reader(admin.app.console.files))
     admin.app.console.library.titles = admin.app.titles
+    admin.app.console.telemetry.titles = admin.app.titles
     admin.repo = RepoManager(repo_dir,
                              base_url=f'http://{host_ip}:{settings.repo_port}/payloads/',
                              max_upload=settings.max_upload)

@@ -90,27 +90,27 @@ python3 scripts/build_release.py --tag v1.4.0 --output /tmp/ps5-release
 推荐使用正式发布的 `v1.4.0` 标签，确保首次升级代码和发布包一致。请在一个新的工作目录执行，避免覆盖原有源码修改：
 
 ```sh
-git clone --branch v1.4.0 --depth 1 https://github.com/wujiezero/ps5-manage.git ps5-jb-server-upgrade
-cd ps5-jb-server-upgrade
+git clone --branch v1.4.0 --depth 1 https://github.com/wujiezero/ps5-manage.git ps5-manage-upgrade
+cd ps5-manage-upgrade
 ```
 
 后续版本将标签替换为对应的 `vX.Y.Z`。源码提交或分支推送不等于 GitHub Release；网页检查只读取正式发布。
 
 ### 标准安装器部署
 
-适用于程序在 `/opt/ps5-jb-server`、服务名为 `ps5-jb-server/ps5-jb-host/ps5-jb-repo` 的默认安装。先在服务器上备份：
+适用于程序在 `/opt/ps5-manage`（旧版为 `/opt/ps5-jb-server`）、服务名为 `ps5-manage/ps5-manage-host/ps5-manage-repo` 的默认安装。先在服务器上备份：
 
 ```sh
 sudo install -d -m 700 /root/ps5-upgrade
-sudo sh -c 'umask 077; tar -czf /root/ps5-upgrade/before-web-updates-$(date +%Y%m%d-%H%M%S).tar.gz -C / opt/ps5-jb-server etc/ps5-jb-server var/lib/ps5-jb-server'
+sudo sh -c 'umask 077; tar -czf /root/ps5-upgrade/before-web-updates-$(date +%Y%m%d-%H%M%S).tar.gz -C / opt/ps5-manage etc/ps5-manage var/lib/ps5-manage'
 ```
 
 然后在刚获取的源码目录中执行：
 
 ```sh
-sudo systemctl stop ps5-jb-server.service ps5-jb-host.service ps5-jb-repo.service
+sudo systemctl stop ps5-manage.service ps5-manage-host.service ps5-manage-repo.service
 sudo ./install.sh upgrade --no-payloads --no-manuals-host --no-firewall
-sudo systemctl restart ps5-jb-server.service ps5-jb-host.service ps5-jb-repo.service
+sudo systemctl restart ps5-manage.service ps5-manage-host.service ps5-manage-repo.service
 ```
 
 必须先停止旧服务：当前安装器的预检会拒绝被占用的端口，直接在运行中的旧服务上执行 `install.sh upgrade` 会报端口占用。这一步会短暂停止管理、DNS 和用户手册服务。升级命令失败时，先处理报错或用备份恢复，再重新启动原服务；不要继续忽略错误运行。
@@ -137,7 +137,7 @@ sudo install -m 644 titledb/titles.json titledb/UPSTREAM_LICENSE /opt/ps5-manage
 ```sh
 sudo python3 scripts/enable_web_updates.py \
   --program-dir /opt/ps5-manager \
-  --config /etc/ps5-jb-server/config.toml \
+  --config /etc/ps5-manage/config.toml \
   --admin-unit ps5-manager.service \
   --repo-unit ps5-repo.service \
   --host-unit ps5-host.service
@@ -145,13 +145,13 @@ sudo systemctl daemon-reload
 sudo systemctl restart ps5-manager.service ps5-repo.service ps5-host.service
 ```
 
-登记命令写部署描述，并安装升级恢复 unit 与管理/仓库服务的恢复依赖 drop-in；`--host-unit` 让用户手册服务随管理服务重新启动，避免它因 `Requires=管理服务` 被停止后没有恢复。标准安装器会自动登记对应的 `ps5-jb-host.service`。登记不会帮你部署尚未安装的新模块，也不会改配置、密钥或数据。可先加 `--dry-run` 查看路径。前端目录必须是程序目录下的真实目录（旧布局通常为 `static`），数据与配置必须在程序目录之外。所有部署目录应由 root 所有且不能被普通用户写入。
+登记命令写部署描述，并安装升级恢复 unit 与管理/仓库服务的恢复依赖 drop-in；`--host-unit` 让用户手册服务随管理服务重新启动，避免它因 `Requires=管理服务` 被停止后没有恢复。标准安装器会自动登记对应的 `ps5-manage-host.service`。登记不会帮你部署尚未安装的新模块，也不会改配置、密钥或数据。可先加 `--dry-run` 查看路径。前端目录必须是程序目录下的真实目录（旧布局通常为 `static`），数据与配置必须在程序目录之外。所有部署目录应由 root 所有且不能被普通用户写入。
 
 ## 故障排查
 
 ```sh
 journalctl -u ps5-service-update-<任务编号>
-systemctl status ps5-manager.service   # 或标准 ps5-jb-server.service
+systemctl status ps5-manage.service   # 或旧版 ps5-jb-server.service / ps5-manager.service
 ```
 
 持久状态位于 `<data>/updates/status.json`。GitHub 没有发布、API 限流、网络错误、缺少附件或校验不匹配都不会被当成可升级版本。若主机重启或执行器在修改前拒绝了部署，服务会根据任务 unit 状态解除过期的升级占用并显示错误。正式生产主机的真实升级应在首次发版后验证；自动测试使用隔离临时目录及模拟服务控制，不会重启当前服务器。

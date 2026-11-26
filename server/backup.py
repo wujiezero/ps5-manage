@@ -250,11 +250,11 @@ class BackupService:
                 self._add(tar, 'manifest.json', _json_bytes(manifest))
             stamp = time.strftime('%Y%m%d-%H%M%S', time.localtime(self.clock()))
             if not include_key:
-                return archive, f'ps5-jb-backup-{stamp}.tar.gz'
+                return archive, f'ps5-manage-backup-{stamp}.tar.gz'
             sealed = work / 'backup.ps5bak'
             encrypt_file(archive, sealed, passphrase)
             archive.unlink()
-            return sealed, f'ps5-jb-backup-{stamp}.ps5bak'
+            return sealed, f'ps5-manage-backup-{stamp}.ps5bak'
         except Exception:
             shutil.rmtree(work, ignore_errors=True)
             raise

@@ -255,7 +255,8 @@ def _stage(spec, paths, stage):
                 parts = name.split('/')
                 if (not member.isreg() or member.issparse() or '\\' in name
                         or any(part in ('', '.', '..') for part in parts)
-                        or parts[0] != 'ps5-jb-server-' + spec['version']):
+                        or parts[0] not in ('ps5-manage-' + spec['version'],
+                                            'ps5-jb-server-' + spec['version'])):
                     raise ValueError(f'unsafe archive member: {name}')
                 relative = '/'.join(parts[1:])
                 python_module = (len(parts) == 3 and parts[1] == 'server'

@@ -10,7 +10,7 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parents[1]
 INSTALLER = REPO / 'installer' / '__main__.py'
 # Programs started by the systemd units (host.py is downloaded, not ours), and the
-# unrar worker that ps5-jb-server starts through systemd-run.
+# unrar worker that ps5-manage starts through systemd-run.
 ENTRY_POINTS = ('server.py', 'payload_repo.py', 'extract_worker.py')
 
 
@@ -111,21 +111,25 @@ class InstallerDryRunTests(unittest.TestCase):
         installer = load_installer()
         with tempfile.TemporaryDirectory() as tmp:
             layout = installer.Layout(prefix=Path(tmp).resolve(), dry_run=True)
-            for name in ('ps5-jb-server-update-recovery.service',
-                         'ps5-jb-server.service.d/update-recovery.conf',
-                         'ps5-jb-repo.service.d/update-recovery.conf',
-                         'ps5-jb-server.service.d/proxy.conf'):
+            for name in ('ps5-manage-update-recovery.service',
+                         'ps5-manage.service.d/update-recovery.conf',
+                         'ps5-manage-repo.service.d/update-recovery.conf',
+                         'ps5-manage.service.d/proxy.conf',
+                         'ps5-jb-server-update-recovery.service'):
                 path = layout.systemd_dir / name
                 path.parent.mkdir(parents=True, exist_ok=True)
                 path.write_text('stale')
             runner = installer.Runner(layout)
             installer.cmd_uninstall(layout, runner=runner)
             self.assertTrue(any(action and action[0:2] == ['rm', '-f']
-                                and action[-1].endswith('ps5-jb-server-update-recovery.service')
+                                and action[-1].endswith('ps5-manage-update-recovery.service')
                                 for action in runner.actions))
             self.assertTrue(any(action and action[0:2] == ['rm', '-f']
-                                and action[-1].endswith('ps5-jb-server.service.d/proxy.conf')
+                                and action[-1].endswith('ps5-manage.service.d/proxy.conf')
                                 for action in runner.actions), runner.actions)
+            self.assertTrue(any(action and action[0:2] == ['rm', '-f']
+                                and action[-1].endswith('ps5-jb-server-update-recovery.service')
+                                for action in runner.actions))
 
     def test_proxy_writes_a_dropin_for_the_configured_service(self):
         installer = load_installer()
@@ -138,7 +142,7 @@ class InstallerDryRunTests(unittest.TestCase):
                        if action[:2] == ['write', str(layout.proxy_dropin)]]
             self.assertEqual(len(written), 1, runner.actions)
             self.assertEqual(layout.proxy_dropin,
-                             layout.systemd_dir / 'ps5-jb-server.service.d/proxy.conf')
+                             layout.systemd_dir / 'ps5-manage.service.d/proxy.conf')
             body = installer.proxy_dropin_text('http://192.0.2.50:6152')
             self.assertIn('Environment="https_proxy=http://192.0.2.50:6152"', body)
             self.assertEqual(runner.actions[-1][:1], ['systemctl'])
@@ -233,7 +237,7 @@ class InterfaceTests(unittest.TestCase):
 
     def test_doctor_prints_the_interface(self):
         with tempfile.TemporaryDirectory() as tmp:
-            config = Path(tmp) / 'etc/ps5-jb-server/config.toml'
+            config = Path(tmp) / 'etc/ps5-manage/config.toml'
             config.parent.mkdir(parents=True)
             config.write_text('[network]\nhost_ip = "192.0.2.10"\nsubnet = "192.0.2.0/24"\n'
                               'upstream_dns = "192.0.2.1"\ninterface = "ens18"\n')
@@ -241,3 +245,25 @@ class InterfaceTests(unittest.TestCase):
                                      '--prefix', tmp], capture_output=True, text=True, timeout=120)
             self.assertEqual(result.returncode, 0, result.stderr)
             self.assertIn('网关网卡     ens18（配置）', result.stdout)
+
+    def test_migrates_legacy_ps5_jb_server_layout_on_upgrade(self):
+        installer = load_installer()
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp).resolve()
+            (root / 'etc/ps5-jb-server').mkdir(parents=True)
+            (root / 'etc/ps5-jb-server/config.toml').write_text(
+                '[network]\nhost_ip = "192.0.2.10"\nsubnet = "192.0.2.0/24"\n'
+                '[paths]\ndata = "/var/lib/ps5-jb-server"\nrepo = "/srv/ps5-jb-server"\n'
+                'static = "/opt/ps5-jb-server/web"\ncerts = "/etc/ps5-jb-server/tls"\n'
+            )
+            (root / 'var/lib/ps5-jb-server').mkdir(parents=True)
+            (root / 'var/lib/ps5-jb-server/hosts.json').write_text('{"192.0.2.20":{}}')
+            (root / 'srv/ps5-jb-server/payloads').mkdir(parents=True)
+            layout = installer.Layout(prefix=root, host_ip='192.0.2.10', no_services=True)
+            installer.migrate_legacy_layout(layout, installer.Runner(layout))
+            self.assertTrue((layout.data / 'hosts.json').exists())
+            self.assertTrue((layout.repo / 'payloads').exists())
+            migrated = layout.config.read_text()
+            self.assertIn('/var/lib/ps5-manage', migrated)
+            self.assertIn('/etc/ps5-manage/tls', migrated)
+            self.assertNotIn('ps5-jb-server', migrated)

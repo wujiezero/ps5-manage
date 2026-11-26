@@ -41,11 +41,16 @@ class KnownHostsTests(unittest.TestCase):
         self.assertEqual((host['ip'], host['remembered'], host['name'], host['firmware']),
                          ('192.0.2.7', True, 'Living room', '9.60'))
         self.assertEqual(host['last_seen'], self.now)
-        # A later scan replaces "last seen" entries with what it really found.
+        # A later scan preserves remembered offline hosts so they stay visible on reconnect.
         with mock.patch('ps5.ddp_search', return_value={}), mock.patch('ps5._tcp_open', return_value=False):
             second._scan()
-        self.assertEqual(second.snapshot()['hosts'], [])
+        hosts_after = second.snapshot()['hosts']
+        self.assertEqual(len(hosts_after), 1)
+        self.assertEqual((hosts_after[0]['ip'], hosts_after[0]['remembered'], hosts_after[0]['elfldr']),
+                         ('192.0.2.7', True, False))
         self.assertIn('192.0.2.7', json.loads(self.path.read_text())['hosts'][0]['ip'])
+        self.assertTrue(second.forget('192.0.2.7'))
+        self.assertEqual(second.snapshot()['hosts'], [])
 
     def test_hosts_not_seen_for_30_days_are_forgotten(self):
         self.path.write_text(json.dumps({'schema': 1, 'hosts': [
@@ -73,6 +78,27 @@ class KnownHostsTests(unittest.TestCase):
         self.assertTrue(host['remembered'])
         self.assertEqual(host['name'], 'Den')
         self.assertFalse(host['online'])
+
+    def test_add_host_and_reconnect_updates_standby_and_on_state(self):
+        from unittest import mock
+        config = FakeConfig(subnet='192.0.2.0/24')
+        config.data_dir = Path(self.tmp.name)
+        manager = HostManager(config, lambda: {'items': []})
+        manager.discovery.clock = lambda: self.now
+        with mock.patch('ps5._tcp_open', return_value=False), mock.patch('ps5.ddp_search', return_value={}):
+            added = manager.add_host('192.0.2.42')
+        self.assertEqual(added['power']['state'], 'off')
+        self.assertIn('192.0.2.42', manager.discovery.known)
+        # Reconnect in standby: DDP responds 620 without TCP payloads.
+        standby_reply = {'192.0.2.42': {'code': 620, 'state': 'standby', 'name': 'PS5-Pro',
+                                        'firmware': '10.20', 'host_type': 'PS5', 'host_id': '1',
+                                        'running_app': '', 'running_app_id': ''}}
+        with mock.patch('ps5._tcp_open', return_value=False), mock.patch('ps5.ddp_search', return_value=standby_reply):
+            ov = manager.overview()
+        self.assertEqual(ov['hosts'][0]['power']['state'], 'standby')
+        self.assertEqual(ov['hosts'][0]['power']['name'], 'PS5-Pro')
+        self.assertTrue(manager.forget_host('192.0.2.42'))
+        self.assertNotIn('192.0.2.42', manager.discovery.known)
 
 
 class FakeConfig:

@@ -294,7 +294,7 @@ class BackupHTTPTests(unittest.TestCase):
     def test_download_then_restore_over_one_connection(self):
         reply, data = self.call('GET', '/api/backup?payloads=0')
         self.assertEqual(reply.status, 200)
-        self.assertIn('attachment; filename="ps5-jb-backup-', reply.getheader('Content-Disposition'))
+        self.assertIn('attachment; filename="ps5-manage-backup-', reply.getheader('Content-Disposition'))
         self.assertEqual(int(reply.getheader('Content-Length')), len(data))
         for _ in range(100):          # the server deletes it right after the last byte
             if not list((self.host.data / 'backup-tmp').iterdir()):

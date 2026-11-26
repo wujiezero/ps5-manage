@@ -22,6 +22,8 @@ from migrate import MIGRATE_LIMIT, migration_target
 from uninstall import UNINSTALL_LIMIT
 from pkg_host import PkgHost
 from ps5 import ConsoleError, HostManager
+from ps5_services import PortScanner
+from telemetry import ConsoleTelemetry
 
 MAX_JSON = 32 * 1024
 CHUNK = 64 * 1024
@@ -58,8 +60,13 @@ class ConsoleAPI:
         # Channel secrets share the NAS key (and its backup / restore).
         self.notify_store = NotifyStore(settings.data_dir / 'notify.json', self.nas.box)
         self.notifier = Notifier(self.notify_store, state_path=settings.data_dir / 'notify-state.json')
+        self.port_scanner = PortScanner(self.ps5.validate_ip)
+        self.telemetry = ConsoleTelemetry(self.engine, files=self.files, library=self.library,
+                                          data_dir=settings.data_dir)
         self.transfers.listeners.append(self.notifier.job_finished)
         self.transfers.listeners.append(self._migrated)
+        if self.files.host:
+            self.ps5.discovery.remember_known(self.files.host)
         if autoscan and self.enabled:
             # The discovery cache is in memory; without this the host list is
             # empty after every restart until someone presses "rescan".
@@ -81,6 +88,7 @@ class ConsoleAPI:
     def set_files_host(self, host):
         """Select the PS5 file host (from a backup); must be an IPv4 address."""
         self.files.host = str(ipaddress.IPv4Address(host))
+        self.ps5.discovery.remember_known(self.files.host)
         self._remember()
 
     def _remember(self):
@@ -148,6 +156,9 @@ class ConsoleAPI:
         '/api/ps5': '_get_ps5',
         '/api/ps5/power': '_get_power',
         '/api/ps5/progress': '_get_progress',
+        '/api/ps5/services': '_get_ps5_services',
+        '/api/ps5/telemetry': '_get_ps5_telemetry',
+        '/api/ps5/telemetry/cover': '_get_ps5_telemetry_cover',
         '/api/files/info': '_get_files_info',
         '/api/files/download': '_get_download',
         '/api/files/tar': '_get_tar',
@@ -200,6 +211,55 @@ class ConsoleAPI:
 
     def _get_progress(self, handler):
         handler.send_body(200, {'progress': self.ps5.progress(self._arg(handler, 'ip'))})
+
+    def _primary_host(self, requested=''):
+        if requested:
+            return self.ps5.validate_ip(requested)
+        snap = self.ps5.discovery.snapshot()
+        hosts = snap.get('hosts') or []
+        online = [h['ip'] for h in hosts if h.get('pldmgr') or h.get('elfldr')]
+        if online:
+            return online[0]
+        if self.files.host:
+            return self.files.host
+        if hosts:
+            return hosts[0]['ip']
+        known = list(self.ps5.discovery.known)
+        return known[0] if known else ''
+
+    def _get_ps5_services(self, handler):
+        ip = self._primary_host(self._arg(handler, 'ip'))
+        if not ip:
+            handler.send_body(200, {'host': '', 'online': False, 'services': [], 'scanned_ports': 0, 'cached': False})
+            return
+        force = self._arg(handler, 'force') in ('1', 'true', 'yes')
+        handler.send_body(200, self.port_scanner.scan(ip, force=force))
+
+    def _get_ps5_telemetry(self, handler):
+        ip = self._primary_host(self._arg(handler, 'ip'))
+        if not ip:
+            handler.send_body(200, {'host': '', 'engine_available': False, 'has_hw': False,
+                                    'cpu': {}, 'memory': {}, 'volumes': [], 'game': {'running': False}})
+            return
+        force = self._arg(handler, 'force') in ('1', 'true', 'yes')
+        power_info = None
+        for host in self.ps5.discovery.snapshot().get('hosts') or []:
+            if host.get('ip') == ip:
+                power_info = host.get('power')
+                break
+        handler.send_body(200, self.telemetry.collect(ip, validate_ip=self.ps5.validate_ip,
+                                                      power_info=power_info, force=force))
+
+    def _get_ps5_telemetry_cover(self, handler):
+        try:
+            data, etag, ctype = self.telemetry.cover(self._arg(handler, 'title'))
+        except (ValueError, FileNotFoundError) as exc:
+            handler.send_body(404, {'error': str(exc)})
+            return
+        if handler.headers.get('If-None-Match') == etag:
+            handler.send_body(304, b'', ctype=ctype, cache='private, max-age=86400', etag=etag)
+            return
+        handler.send_body(200, data, ctype=ctype, cache='private, max-age=86400', etag=etag)
 
     def _get_files_info(self, handler):
         handler.send_body(200, {**self.files.info(), 'enabled': True, 'hosts': self._known_hosts()})
@@ -339,11 +399,15 @@ class ConsoleAPI:
         return True
 
     def _known_hosts(self):
-        return [host['ip'] for host in self.ps5.discovery.snapshot()['hosts']]
+        ordered = list(dict.fromkeys([host['ip'] for host in self.ps5.discovery.snapshot()['hosts']]
+                                     + list(self.ps5.discovery.known)))
+        return ordered
 
     # ---------- POST ----------
     POST_ROUTES = {
         '/api/ps5/scan': '_post_scan',
+        '/api/ps5/add': '_post_add',
+        '/api/ps5/forget': '_post_forget',
         '/api/ps5/attach': '_post_attach',
         '/api/ps5/install': '_post_install',
         '/api/ps5/upgrade': '_post_upgrade',
@@ -401,10 +465,21 @@ class ConsoleAPI:
             return True
 
     def _post_scan(self, handler, body, path):
-        handler.send_body(200, self.ps5.scan())
+        handler.send_body(200, self._with_power(self.ps5.scan()))
+
+    def _post_add(self, handler, body, path):
+        host = self.ps5.add_host(body.get('ip'))
+        handler.send_body(200, {'ok': True, 'host': self._with_power({'hosts': [host]})['hosts'][0]})
+
+    def _post_forget(self, handler, body, path):
+        ip = self.ps5.validate_ip(body.get('ip'))
+        removed = self.ps5.forget_host(ip)
+        handler.send_body(200, {'ok': True, 'removed': removed, 'ip': ip})
 
     def _post_attach(self, handler, body, path):
-        handler.send_body(200, {'ok': True, 'host': self.ps5.attach(body.get('ip'))})
+        ip = self.ps5.validate_ip(body.get('ip'))
+        self.ps5.discovery.remember_known(ip)
+        handler.send_body(200, {'ok': True, 'host': self.ps5.attach(ip)})
 
     def _post_install(self, handler, body, path):
         handler.send_body(200, self.ps5.install(body.get('ip'), body.get('filename'),
@@ -428,13 +503,20 @@ class ConsoleAPI:
             lead_ms=body.get('lead_ms') or 0, files=body.get('files')))
 
     def _post_pair(self, handler, body, path):
-        handler.send_body(200, self.power.pair(body.get('ip'), body.get('pin'), body.get('account_id')))
+        ip = body.get('ip')
+        result = self.power.pair(ip, body.get('pin'), body.get('account_id'))
+        self.ps5.discovery.remember_known(ip)
+        handler.send_body(200, result)
 
     def _post_wake(self, handler, body, path):
-        handler.send_body(200, {'ok': True, 'job': self.power.wake(body.get('ip'))})
+        ip = body.get('ip')
+        self.ps5.discovery.remember_known(ip)
+        handler.send_body(200, {'ok': True, 'job': self.power.wake(ip)})
 
     def _post_standby(self, handler, body, path):
-        handler.send_body(200, self.power.standby(body.get('ip')))
+        ip = body.get('ip')
+        self.ps5.discovery.remember_known(ip)
+        handler.send_body(200, self.power.standby(ip))
 
     def _post_shutdown(self, handler, body, path):
         handler.send_body(200, self.ps5.shutdown(body.get('ip')))
@@ -442,6 +524,7 @@ class ConsoleAPI:
     def _post_configure(self, handler, body, path):
         info = self.files.configure(body.get('host'))
         if info.get('configured'):
+            self.ps5.discovery.remember_known(self.files.host)
             self._remember()
         handler.send_body(200, {**info, 'hosts': self._known_hosts()})
 

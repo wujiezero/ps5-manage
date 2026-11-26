@@ -546,3 +546,262 @@
 .game-pick-meta { font-size: 0.75rem; color: var(--mut); overflow-wrap: anywhere; }
 #migrate-form .nas-checks, #uninstall-form .nas-checks { margin: 12px 0 4px; }
 #uninstall-summary:empty { display: none; }
+
+/* 概览：PS5 遥测仪表板与开放 ELF 端口卡片 */
+.overview-telemetry-section { display: grid; gap: 12px; margin-bottom: 16px; }
+.overview-band-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 12px;
+}
+.overview-band-title { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 12px; min-width: 0; }
+.overview-band-title h2 { margin: 0; font-size: 1rem; font-weight: 650; display: inline-flex; align-items: center; gap: 6px; }
+.overview-band-meta { font-size: 0.78rem; }
+.overview-band-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.overview-host-select {
+  width: auto;
+  min-width: 170px;
+  max-width: 280px;
+  min-height: 32px;
+  padding: 4px 10px;
+  font-size: 0.8125rem;
+}
+.overview-band-note { margin: 0; font-size: 0.78rem; }
+
+.telemetry-grid {
+  display: grid;
+  gap: 14px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+@media (max-width: 1280px) {
+  .telemetry-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 720px) {
+  .telemetry-grid { grid-template-columns: minmax(0, 1fr); }
+}
+
+.telemetry-card {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+  padding: 16px;
+}
+.telemetry-head { display: flex; align-items: center; gap: 8px; }
+.telemetry-head-left { display: flex; align-items: center; gap: 8px; }
+.telemetry-head h3 { margin: 0; font-size: 0.9375rem; font-weight: 650; }
+.telemetry-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+  background: var(--accent);
+  flex: 0 0 auto;
+}
+.telemetry-game-head { justify-content: space-between; gap: 8px; }
+.telemetry-game-pill {
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--raised);
+  border: 1px solid var(--line);
+  font-size: 0.72rem;
+  color: var(--mut);
+}
+
+.telemetry-tiles { display: grid; gap: 8px; }
+.telemetry-tiles-2x2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.telemetry-tiles-2col { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.telemetry-tile {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 4px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: var(--raised);
+  border: 1px solid var(--line);
+  min-width: 0;
+}
+.telemetry-tile-tall { min-height: 112px; }
+.telemetry-tile-label { font-size: 0.75rem; color: var(--mut); }
+.telemetry-tile-val {
+  font-size: 1.25rem;
+  font-weight: 700;
+  line-height: 1.22;
+  letter-spacing: -0.02em;
+  color: var(--fg);
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+.telemetry-tile-stack { font-size: 1.08rem; }
+.telemetry-tile-sub { font-size: 0.72rem; color: var(--faint); line-height: 1.35; overflow-wrap: anywhere; }
+
+.telemetry-bar-block { margin-top: auto; display: grid; gap: 6px; padding-top: 2px; }
+.telemetry-bar-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  font-size: 0.78rem;
+  color: var(--mut);
+}
+.telemetry-bar {
+  height: 6px;
+  border-radius: 999px;
+  background: var(--bar);
+  overflow: hidden;
+}
+.telemetry-bar-fill {
+  height: 100%;
+  width: 0%;
+  border-radius: inherit;
+  background: var(--ok);
+  transition: width 260ms var(--ease);
+}
+.telemetry-bar-fill[data-tone="warning"] { background: var(--warn); }
+.telemetry-bar-fill[data-tone="error"] { background: var(--danger); }
+.telemetry-mem-sub { margin: 2px 0 0; }
+
+.telemetry-storage-list { display: grid; gap: 12px; }
+.telemetry-storage-item { display: grid; gap: 5px; }
+.telemetry-storage-top, .telemetry-storage-meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px;
+}
+.telemetry-storage-name { font-size: 0.875rem; font-weight: 600; color: var(--fg); }
+.telemetry-storage-pct { font-size: 0.875rem; font-weight: 650; color: var(--accent); }
+.telemetry-storage-meta { font-size: 0.72rem; color: var(--mut); }
+.telemetry-empty { margin: 8px 0; font-size: 0.8125rem; }
+
+.telemetry-game-card { gap: 10px; }
+.telemetry-game-body {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 112px;
+  gap: 12px;
+  align-items: start;
+}
+.telemetry-game-info { min-width: 0; display: grid; gap: 4px; }
+.telemetry-fps-box {
+  display: inline-flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 5px;
+  padding: 10px 12px;
+  margin-bottom: 4px;
+  border-radius: 10px;
+  background: var(--raised);
+  border: 1px solid var(--line);
+  color: var(--mut);
+}
+.telemetry-fps-box[data-active="true"] {
+  background: var(--ok-soft);
+  border-color: var(--ok-line);
+  color: var(--ok);
+}
+.telemetry-fps-val { font-size: 1.75rem; font-weight: 750; line-height: 1; font-variant-numeric: tabular-nums; }
+.telemetry-fps-unit { font-size: 0.8125rem; font-weight: 650; }
+.telemetry-game-name { margin: 0; font-size: 1rem; font-weight: 700; color: var(--fg); overflow-wrap: anywhere; }
+.telemetry-game-sub { margin: 0; font-size: 0.78rem; color: var(--accent); overflow-wrap: anywhere; }
+.telemetry-game-meta { margin: 0; font-size: 0.74rem; color: var(--mut); overflow-wrap: anywhere; }
+.telemetry-cover-wrap { position: relative; width: 112px; height: 112px; }
+.telemetry-cover {
+  width: 112px;
+  height: 112px;
+  border-radius: 10px;
+  object-fit: cover;
+  border: 1px solid var(--line);
+  background: var(--raised);
+}
+.telemetry-cover-blank {
+  display: grid;
+  place-items: center;
+  color: var(--faint);
+  font-size: 0.8125rem;
+  font-weight: 650;
+}
+.telemetry-game-state {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: rgba(11, 17, 29, 0.78);
+  color: #e8eef7;
+  font-size: 0.6875rem;
+  font-weight: 600;
+}
+.telemetry-live-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--ok);
+}
+.telemetry-game-desc {
+  margin: auto 0 0;
+  padding: 9px 11px;
+  border-radius: 8px;
+  background: var(--raised);
+  border: 1px solid var(--line);
+  font-size: 0.75rem;
+  line-height: 1.45;
+  color: var(--mut);
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.overview-services-card { margin-bottom: 16px; }
+.overview-services-title-wrap { min-width: 0; }
+.overview-services-title-wrap h2 { margin: 0; font-size: 1rem; display: inline-flex; align-items: center; gap: 6px; }
+.services-grid {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+  margin-top: 12px;
+}
+.services-empty { grid-column: 1 / -1; margin: 4px 0; font-size: 0.8125rem; }
+.service-card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 12px 14px;
+  border-radius: 10px;
+  background: var(--raised);
+  border: 1px solid var(--line);
+  color: inherit;
+  text-align: left;
+  text-decoration: none;
+  cursor: pointer;
+  transition: border-color var(--dur) var(--ease), background var(--dur) var(--ease);
+}
+.service-card:hover { border-color: var(--accent); background: var(--sel); }
+.service-card-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; }
+.service-card-name { font-size: 0.875rem; font-weight: 650; color: var(--fg); overflow-wrap: anywhere; }
+.service-card-port {
+  flex: 0 0 auto;
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: 0.72rem;
+  font-weight: 600;
+}
+.service-card-desc { margin: 0; font-size: 0.78rem; color: var(--mut); line-height: 1.4; }
+.service-card-repo { margin: 0; font-size: 0.72rem; color: var(--faint); overflow-wrap: anywhere; }
+.service-card-foot {
+  margin-top: auto;
+  padding-top: 4px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.74rem;
+}
+.service-card-addr { color: var(--mut); overflow-wrap: anywhere; }
+.service-card-action { color: var(--accent); font-weight: 600; white-space: nowrap; }

@@ -668,7 +668,7 @@ async function downloadBackup() {
       throw new ApiError(data && typeof data.error === 'string' ? data.error : '备份失败，请查看运行日志。', response.status);
     }
     const blob = await response.blob();
-    const name = backupFilename(response.headers.get('Content-Disposition'), includeKey ? 'ps5-jb-backup.ps5bak' : 'ps5-jb-backup.tar.gz');
+    const name = backupFilename(response.headers.get('Content-Disposition'), includeKey ? 'ps5-manage-backup.ps5bak' : 'ps5-manage-backup.tar.gz');
     saveBlob(blob, name);
     $('backup-passphrase').value = '';
     toast(`已下载 ${name}（${formatBytes(blob.size)}）。`, 'success');

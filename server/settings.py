@@ -1,6 +1,6 @@
-"""Runtime settings for ps5-jb-server.
+"""Runtime settings for ps5-manage.
 
-Values come from a TOML file (default /etc/ps5-jb-server/config.toml) with
+Values come from a TOML file (default /etc/ps5-manage/config.toml) with
 environment overrides, so the installer can write one file and nothing else
 needs to be edited.  Every path is overridable, which is what makes the
 unprivileged test install possible.
@@ -18,12 +18,12 @@ DEFAULTS = {
     'ports': {'dns': 53, 'http': 80, 'https': 443, 'admin': 8443, 'repo': 8080},
     'ps5': {'pldmgr_port': 8084, 'elf_port': 9021, 'file_port': 80, 'ftp_port': 2120,
             'control': True, 'file_manager': True},
-    'paths': {'data': '/var/lib/ps5-jb-server', 'repo': '/srv/ps5-jb-server',
-              'static': '/opt/ps5-jb-server/web', 'certs': '/etc/ps5-jb-server/tls',
-              'credentials': '/var/lib/ps5-jb-server/credentials.json',
-              'config': '/etc/ps5-jb-server/config.toml',
-              'rulesets': '/opt/ps5-jb-server/rulesets/compiled.json',
-              'titles': '/opt/ps5-jb-server/titledb/titles.json'},
+    'paths': {'data': '/var/lib/ps5-manage', 'repo': '/srv/ps5-manage',
+              'static': '/opt/ps5-manage/web', 'certs': '/etc/ps5-manage/tls',
+              'credentials': '/var/lib/ps5-manage/credentials.json',
+              'config': '/etc/ps5-manage/config.toml',
+              'rulesets': '/opt/ps5-manage/rulesets/compiled.json',
+              'titles': '/opt/ps5-manage/titledb/titles.json'},
 }
 
 
@@ -96,18 +96,18 @@ class Settings:
     max_file_upload: int = 0            # PS5 file manager uploads (streamed); 0 = no limit
     transfer_retries: int = 3           # automatic retries per file in NAS transfers; 0 = off
     activity_retention_days: int = 30   # activity history kept in <data>/activity.db
-    data_dir: Path = Path('/var/lib/ps5-jb-server')
-    repo_dir: Path = Path('/srv/ps5-jb-server')
-    static_dir: Path = Path('/opt/ps5-jb-server/web')
-    cert_dir: Path = Path('/etc/ps5-jb-server/tls')
-    credentials_path: Path = Path('/var/lib/ps5-jb-server/credentials.json')
-    config_path: Path = Path('/etc/ps5-jb-server/config.toml')
-    rulesets_path: Path = Path('/opt/ps5-jb-server/rulesets/compiled.json')
+    data_dir: Path = Path('/var/lib/ps5-manage')
+    repo_dir: Path = Path('/srv/ps5-manage')
+    static_dir: Path = Path('/opt/ps5-manage/web')
+    cert_dir: Path = Path('/etc/ps5-manage/tls')
+    credentials_path: Path = Path('/var/lib/ps5-manage/credentials.json')
+    config_path: Path = Path('/etc/ps5-manage/config.toml')
+    rulesets_path: Path = Path('/opt/ps5-manage/rulesets/compiled.json')
     # Offline title-ID -> game-name catalog (scripts/build_titles.py).
-    titles_path: Path = Path('/opt/ps5-jb-server/titledb/titles.json')
+    titles_path: Path = Path('/opt/ps5-manage/titledb/titles.json')
     # AES key for NAS credentials; kept beside config.toml, away from the data dir.
-    secret_key_path: Path = Path('/etc/ps5-jb-server/nas.key')
-    systemd_prefix: str = 'ps5-jb-server'
+    secret_key_path: Path = Path('/etc/ps5-manage/nas.key')
+    systemd_prefix: str = 'ps5-manage'
     extra: dict = field(default_factory=dict)
 
     def ensure_dirs(self):
@@ -116,7 +116,17 @@ class Settings:
 
     @classmethod
     def load(cls, path=None):
-        path = Path(path or os.environ.get('PS5JB_CONFIG', DEFAULTS['paths']['config']))
+        default = DEFAULTS['paths']['config']
+        legacy = '/etc/ps5-jb-server/config.toml'
+        if not path:
+            env = os.environ.get('PS5_MANAGE_CONFIG') or os.environ.get('PS5JB_CONFIG')
+            if env:
+                path = env
+            elif not Path(default).exists() and Path(legacy).exists():
+                path = legacy
+            else:
+                path = default
+        path = Path(path)
         raw = {}
         if path.exists():
             raw = tomllib.loads(path.read_text())
@@ -125,9 +135,15 @@ class Settings:
     @classmethod
     def from_mapping(cls, raw, path=None):
         def pick(section, key, env, default):
-            value = os.environ.get(env)
-            if value not in (None, ''):
-                return value
+            names = (env,) if isinstance(env, str) else tuple(env)
+            for name in names:
+                value = os.environ.get(name)
+                if value not in (None, ''):
+                    return value
+                if name.startswith('PS5JB_'):
+                    alt = os.environ.get('PS5_MANAGE_' + name[6:])
+                    if alt not in (None, ''):
+                        return alt
             return (raw.get(section) or {}).get(key, default)
 
         def flag(section, key, env, default):

@@ -58,7 +58,7 @@ class UpdateWorkerTests(unittest.TestCase):
         self.spec = dict(schema=1, id='test-update-id', archive=str(self.archive), sha256='', version='1.4.0',
                          program_dir=str(self.program), static_dir=str(self.static),
                          data_dir=str(self.data), config_path=str(self.config),
-                         admin_unit='ps5-jb-server.service', repo_unit='ps5-jb-repo.service',
+                         admin_unit='ps5-manage.service', repo_unit='ps5-manage-repo.service',
                          health_url='https://127.0.0.1:8443/api/version',
                          status_path=str(self.updates / 'job.json'))
         self.events = []
@@ -76,14 +76,14 @@ class UpdateWorkerTests(unittest.TestCase):
                 'titledb/titles.json': b'{}', 'titledb/UPSTREAM_LICENSE': b'license',
                 'VERSION': b'1.4.0\n'}
 
-    def write_archive(self, overrides=None, extra=None, omit=()):
+    def write_archive(self, overrides=None, extra=None, omit=(), prefix='ps5-manage-1.4.0/'):
         files = self.runtime_files()
         files.update(overrides or {})
         for name in omit:
             files.pop(name, None)
         with tarfile.open(self.archive, 'w:gz') as archive:
             for name, content in files.items():
-                info = tarfile.TarInfo('ps5-jb-server-1.4.0/' + name)
+                info = tarfile.TarInfo(prefix + name)
                 info.size = len(content)
                 archive.addfile(info, io.BytesIO(content))
             for info, content in extra or ():
@@ -138,16 +138,16 @@ class UpdateWorkerTests(unittest.TestCase):
         self.assert_unchanged()
 
     def test_unsafe_tar_members_are_rejected_before_services(self):
-        for name, kind in [('ps5-jb-server-1.4.0/../escape', tarfile.REGTYPE),
+        for name, kind in [('ps5-manage-1.4.0/../escape', tarfile.REGTYPE),
                            ('/absolute', tarfile.REGTYPE),
-                           ('ps5-jb-server-1.4.0/server/link.py', tarfile.SYMTYPE),
-                           ('ps5-jb-server-1.4.0/server/hard.py', tarfile.LNKTYPE),
-                           ('ps5-jb-server-1.4.0/server/fifo', tarfile.FIFOTYPE),
-                           ('ps5-jb-server-1.4.0/server/server.py', tarfile.REGTYPE),
-                           ('ps5-jb-server-1.4.0/server/host.py', tarfile.REGTYPE),
-                           ('ps5-jb-server-1.4.0/config.toml', tarfile.REGTYPE),
-                           ('ps5-jb-server-1.4.0/docs/readme.md', tarfile.REGTYPE),
-                           ('ps5-jb-server-1.4.0/server/nested/a.py', tarfile.REGTYPE)]:
+                           ('ps5-manage-1.4.0/server/link.py', tarfile.SYMTYPE),
+                           ('ps5-manage-1.4.0/server/hard.py', tarfile.LNKTYPE),
+                           ('ps5-manage-1.4.0/server/fifo', tarfile.FIFOTYPE),
+                           ('ps5-manage-1.4.0/server/server.py', tarfile.REGTYPE),
+                           ('ps5-manage-1.4.0/server/host.py', tarfile.REGTYPE),
+                           ('ps5-manage-1.4.0/config.toml', tarfile.REGTYPE),
+                           ('ps5-manage-1.4.0/docs/readme.md', tarfile.REGTYPE),
+                           ('ps5-manage-1.4.0/server/nested/a.py', tarfile.REGTYPE)]:
             with self.subTest(name=name, kind=kind):
                 info = tarfile.TarInfo(name)
                 info.type = kind
@@ -314,10 +314,10 @@ class UpdateWorkerTests(unittest.TestCase):
         self.assertEqual((self.program / 'server.py').read_bytes(), b'# old server\n')
 
     def test_tar_directory_backslash_empty_segments_and_foreign_root_are_rejected(self):
-        for name, kind in [('ps5-jb-server-1.4.0/server', tarfile.DIRTYPE),
-                           ('ps5-jb-server-1.4.0/server\\\\bad.py', tarfile.REGTYPE),
-                           ('ps5-jb-server-1.4.0/server//bad.py', tarfile.REGTYPE),
-                           ('ps5-jb-server-1.3.9/server/bad.py', tarfile.REGTYPE)]:
+        for name, kind in [('ps5-manage-1.4.0/server', tarfile.DIRTYPE),
+                           ('ps5-manage-1.4.0/server\\\\bad.py', tarfile.REGTYPE),
+                           ('ps5-manage-1.4.0/server//bad.py', tarfile.REGTYPE),
+                           ('ps5-manage-1.3.9/server/bad.py', tarfile.REGTYPE)]:
             with self.subTest(name=name):
                 info = tarfile.TarInfo(name)
                 info.type = kind

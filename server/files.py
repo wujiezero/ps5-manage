@@ -248,7 +248,7 @@ class FileProxy:
         return None
 
     def upload(self, directory, filename, chunks, length, overwrite=False,
-               client='ps5-jb-server', offset=0):
+               client='ps5-manage', offset=0):
         _check_path(directory, allow_volume=True)
         if not filename or '/' in filename or filename in ('.', '..'):
             raise ValueError('文件名不合法')

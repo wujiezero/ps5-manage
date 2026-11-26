@@ -174,6 +174,11 @@ function assignPs5(next) {
   }
   if (!ps5SelectedIp && ps5.hosts.length) ps5SelectedIp = ps5.hosts[0].ip;
   renderPs5();
+  if (typeof maybeRefreshOverviewExtras === 'function' && currentSection === 'overview') {
+    const prevHost = overviewSelectedHost;
+    const nextHost = syncOverviewHostSelect();
+    if (nextHost && nextHost !== prevHost) maybeRefreshOverviewExtras({ force: true });
+  }
 }
 
 function flushPs5Pending() {
@@ -300,7 +305,10 @@ function renderPs5HostCount() {
     return;
   }
   const online = ps5.hosts.filter((host) => host.online).length;
-  tag.textContent = ps5.hosts.length ? `${ps5.hosts.length} 台 · ${online} 在线` : '0 台';
+  const standby = ps5.hosts.filter((host) => !host.online && host.power.state === 'standby').length;
+  const parts = [`${ps5.hosts.length} 台`, `${online} 在线`];
+  if (standby) parts.push(`${standby} 待机`);
+  tag.textContent = ps5.hosts.length ? parts.join(' · ') : '0 台';
 }
 
 function ps5LoadingNode() {
@@ -372,7 +380,8 @@ function createPs5HostCard(host) {
     ['running', '停止进程', '打开运行中的进程', false],
     ['power', '唤醒', '唤醒或让主机待机', false],
     ['pair', '配对唤醒', '配对遥控游玩以便唤醒', false],
-    ['shutdown', '退出 pldmgr', '退出主机上的 Payload Manager', true]
+    ['shutdown', '退出 pldmgr', '退出主机上的 Payload Manager', true],
+    ['forget', '移除记忆', '忘记这台已保存的主机', true]
   ];
   for (const [action, label, ariaSuffix, danger] of specs) {
     const button = makeElement('button', 'button button-secondary button-small');
@@ -435,6 +444,10 @@ function syncPs5HostButton(button, host) {
     }
   } else if (action === 'select') {
     disabled = false;
+  } else if (action === 'forget') {
+    button.hidden = host.online;
+    disabled = !authenticated || ps5Busy;
+    reason = host.online ? '在线主机无需移除' : '';
   } else if (action === 'attach') {
     const label = button.querySelector('.button-label');
     if (label) label.textContent = host.sourceAttached ? '仓库已接入' : '接入本服务仓库';
@@ -485,8 +498,12 @@ function syncPs5HostCard(card, host) {
   }
 
   const online = card.querySelector('[data-field="online"]');
-  const powerLabel = { on: host.online ? '在线' : '已开机 · 未运行载荷', standby: '待机中', off: '离线' }[host.power.state] || '离线';
-  online.textContent = host.remembered && !host.online && host.power.state === 'off' ? '上次发现 · 扫描中' : powerLabel;
+  const powerLabel = {
+    on: host.online ? '已唤醒 · 在线' : '已唤醒 · 未运行载荷',
+    standby: '待机中',
+    off: '已离线'
+  }[host.power.state] || '已离线';
+  online.textContent = powerLabel;
   online.dataset.tone = host.power.state === 'standby' ? 'warning' : host.online ? 'good' : host.power.state === 'on' ? 'info' : 'neutral';
   online.title = host.power.state === 'standby' ? '主机处于待机（休息模式）：载荷通常仍在内存中，唤醒后即可继续使用。' : '';
   const elfldr = card.querySelector('[data-field="elfldr"]');
@@ -1264,6 +1281,59 @@ async function scanPs5(options = {}) {
   return Boolean(result);
 }
 
+async function addPs5Host(ip) {
+  if (!authenticated || ps5Busy) return;
+  ps5Begin('add', ip, { label: `正在添加并探测 ${ip}…` });
+  setPs5AddError('');
+  const requestEpoch = epoch;
+  try {
+    const result = await api('/api/ps5/add', { ip });
+    if (requestEpoch !== epoch) return;
+    if (result.host) updatePs5Host(result.host);
+    selectPs5Host(ip);
+    $('ps5-add-ip').value = '';
+    const state = result.host && result.host.online ? '在线' : (result.host && result.host.power && result.host.power.state === 'standby' ? '待机中' : '已记住（当前离线）');
+    toast(`已保存主机 ${ip}（${state}）。`, 'success');
+    refreshPs5();
+  } catch (error) {
+    if (requestEpoch !== epoch) return;
+    if (error.status === 401) {
+      showLogin(error.message);
+      return;
+    }
+    setPs5AddError(error.message || `无法添加 ${ip}。`);
+  } finally {
+    ps5End();
+  }
+}
+
+async function forgetPs5Host(ip) {
+  if (!authenticated || ps5Busy) return;
+  ps5Begin('forget', ip, { label: '正在移除主机记忆…' });
+  const requestEpoch = epoch;
+  try {
+    const result = await api('/api/ps5/forget', { ip });
+    if (requestEpoch !== epoch) return;
+    if (result.ok !== true) throw new ApiError('未能移除该主机。');
+    ps5.hosts = ps5.hosts.filter((h) => h.ip !== ip);
+    if (ps5SelectedIp === ip) {
+      ps5SelectedIp = ps5.hosts.length ? ps5.hosts[0].ip : '';
+      ps5Draft = null;
+    }
+    toast(`已移除记住的主机 ${ip}。`, 'success');
+    refreshPs5();
+  } catch (error) {
+    if (requestEpoch !== epoch) return;
+    if (error.status === 401) {
+      showLogin(error.message);
+      return;
+    }
+    toast(error.message || '移除失败。', 'error');
+  } finally {
+    ps5End();
+  }
+}
+
 function submitPs5Add(event) {
   event.preventDefault();
   if (!authenticated || ps5Busy) return;
@@ -1288,7 +1358,7 @@ function submitPs5Add(event) {
     toast(`${value} 已在主机列表中，已选中。`, 'info');
     return;
   }
-  scanPs5({ pickIp: value });
+  addPs5Host(value);
 }
 
 async function attachPs5Host(ip) {
@@ -1506,6 +1576,9 @@ function handlePs5Action(element) {
       break;
     case 'shutdown':
       openPs5Shutdown(ip);
+      break;
+    case 'forget':
+      forgetPs5Host(ip);
       break;
     case 'power': {
       const host = ps5HostByIp(ip);

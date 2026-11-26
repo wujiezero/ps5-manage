@@ -334,6 +334,15 @@ function bindPolishEvents() {
     ps5RestoreFocus();
   });
   $('repo-ps5-hint-go').addEventListener('click', (event) => goPs5Updates(event.currentTarget.dataset.ip));
+  if ($('overview-host-select')) {
+    $('overview-host-select').addEventListener('change', () => {
+      overviewSelectedHost = $('overview-host-select').value;
+      refreshOverviewTelemetry({ force: true, quiet: true });
+      refreshOverviewServices({ force: true, quiet: true });
+    });
+  }
+  if ($('overview-telemetry-refresh')) $('overview-telemetry-refresh').addEventListener('click', () => refreshOverviewTelemetry({ force: true, quiet: false }));
+  if ($('overview-services-refresh')) $('overview-services-refresh').addEventListener('click', () => refreshOverviewServices({ force: true, quiet: false }));
   initCategoryCombo('repo-upload');
   initCategoryCombo('repo-edit');
 }

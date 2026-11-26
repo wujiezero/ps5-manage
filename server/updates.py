@@ -47,7 +47,7 @@ class GithubRedirect(urllib.request.HTTPRedirectHandler):
 
 def fetch_bytes(url, limit, progress=None):
     request = urllib.request.Request(url, headers={
-        'User-Agent': f'ps5-jb-server/{VERSION}', 'Accept': 'application/vnd.github+json' if url == LATEST else 'application/octet-stream',
+        'User-Agent': f'ps5-manage/{VERSION}', 'Accept': 'application/vnd.github+json' if url == LATEST else 'application/octet-stream',
         'X-GitHub-Api-Version': '2022-11-28',
     })
     # Release assets live on hosts that some LANs can only reach through a proxy.
@@ -166,11 +166,14 @@ class UpdateManager:
             raise UpdateError('发布标签必须是 vX.Y.Z')
         version = tag[1:]
         semver(version)
-        filename = f'ps5-jb-server-{version}.tar.gz'
         prefix = RELEASES + '/download/' + tag + '/'
         assets = document.get('assets')
         if not isinstance(assets, list):
             raise UpdateError('发布缺少更新附件')
+        by_name = {item.get('name'): item for item in assets if isinstance(item, dict) and item.get('name')}
+        # Prefer ps5-manage-<ver>.tar.gz; accept legacy ps5-jb-server-<ver>.tar.gz if present.
+        candidates = (f'ps5-manage-{version}.tar.gz', f'ps5-jb-server-{version}.tar.gz')
+        filename = next((name for name in candidates if name in by_name), candidates[0])
         selected = {}
         for name in (filename, filename + '.sha256'):
             matches = [item for item in assets if isinstance(item, dict) and item.get('name') == name]
@@ -265,9 +268,10 @@ class UpdateManager:
         try:
             self._state(ident, version, 'downloading')
             checksum = self.fetch(release['checksum'], 4096).decode('ascii').strip().split()
-            name = f'ps5-jb-server-{version}.tar.gz'
+            name = urllib.parse.urlsplit(release['asset']).path.rsplit('/', 1)[-1]
+            allowed_names = (f'ps5-manage-{version}.tar.gz', f'ps5-jb-server-{version}.tar.gz')
             if (len(checksum) != 2 or not re.fullmatch(r'[a-f0-9]{64}', checksum[0])
-                    or checksum[1] != name):
+                    or name not in allowed_names or checksum[1] != name):
                 raise UpdateError('SHA-256 校验文件格式不正确')
             data = self._download(ident, version, release)
             if len(data) != release['size'] or hashlib.sha256(data).hexdigest() != checksum[0]:

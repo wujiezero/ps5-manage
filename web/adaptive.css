@@ -149,6 +149,13 @@
     font-size: 0.75rem;
     color: var(--muted);
   }
+  .activity-table td:nth-child(10) {
+    order: 9;
+    flex: 0 0 auto;
+    margin-left: auto;
+    width: auto;
+    text-align: right;
+  }
   .activity-table td:nth-child(7) .result-note { margin-top: 2px; text-align: right; }
   .activity-check-target { width: 44px; height: 44px; margin: -6px 0 -6px -8px; }
   .activity-table input[type="checkbox"] { width: 22px; height: 22px; }

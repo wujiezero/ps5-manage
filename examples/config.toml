@@ -1,5 +1,5 @@
-# ps5-jb-server configuration. Install to /etc/ps5-jb-server/config.toml.
-# Every value can also be overridden with PS5JB_* environment variables.
+# ps5-manage configuration. Install to /etc/ps5-manage/config.toml.
+# Every value can also be overridden with PS5_MANAGE_* (or PS5JB_*) environment variables.
 
 [network]
 # Address of this host on the home LAN. Leave empty to detect from the default route.
@@ -46,9 +46,9 @@ retention_days = 30    # network activity history kept in <data>/activity.db (1-
 upstream = "https://itsplk.github.io/ps5-payloads-mirror/payloads_v2.json"
 
 [paths]
-data = "/var/lib/ps5-jb-server"
-repo = "/srv/ps5-jb-server"
-static = "/opt/ps5-jb-server/web"
-certs = "/etc/ps5-jb-server/tls"
-credentials = "/var/lib/ps5-jb-server/credentials.json"
-rulesets = "/opt/ps5-jb-server/rulesets/compiled.json"
+data = "/var/lib/ps5-manage"
+repo = "/srv/ps5-manage"
+static = "/opt/ps5-manage/web"
+certs = "/etc/ps5-manage/tls"
+credentials = "/var/lib/ps5-manage/credentials.json"
+rulesets = "/opt/ps5-manage/rulesets/compiled.json"

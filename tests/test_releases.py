@@ -23,12 +23,12 @@ class ReleaseTests(unittest.TestCase):
         module = self.builder()
         with tempfile.TemporaryDirectory() as directory:
             artifact, checksum = module.build_release(ROOT, Path(directory), tag='v' + VERSION)
-            self.assertEqual(artifact.name, f'ps5-jb-server-{VERSION}.tar.gz')
+            self.assertEqual(artifact.name, f'ps5-manage-{VERSION}.tar.gz')
             import hashlib
             self.assertEqual(checksum.read_text(), hashlib.sha256(artifact.read_bytes()).hexdigest() + '  ' + artifact.name + '\n')
             with tarfile.open(artifact) as archive:
                 names = archive.getnames()
-                prefix = f'ps5-jb-server-{VERSION}/'
+                prefix = f'ps5-manage-{VERSION}/'
                 self.assertIn(prefix + 'server/version.py', names)
                 self.assertIn(prefix + 'server/update_worker.py', names)
                 self.assertEqual(archive.extractfile(prefix + 'VERSION').read(), (VERSION + '\n').encode())
@@ -37,6 +37,10 @@ class ReleaseTests(unittest.TestCase):
             first = artifact.read_bytes()
             module.build_release(ROOT, Path(directory), tag='v' + VERSION)
             self.assertEqual(first, artifact.read_bytes())
+            legacy, legacy_sum = module.build_release(ROOT, Path(directory), tag='v' + VERSION,
+                                                      package_name='ps5-jb-server')
+            self.assertEqual(legacy.name, f'ps5-jb-server-{VERSION}.tar.gz')
+            self.assertTrue(legacy_sum.exists())
 
     def test_package_ships_only_the_three_legacy_web_files(self):
         """Update workers up to v1.9.0 refuse any other web/ member, so the front end is bundled."""
@@ -50,7 +54,7 @@ class ReleaseTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             artifact, _ = module.build_release(ROOT, Path(directory))
             with tarfile.open(artifact) as archive:
-                prefix = f'ps5-jb-server-{VERSION}/'
+                prefix = f'ps5-manage-{VERSION}/'
                 members = {name[len(prefix):]: archive.extractfile(name).read() for name in archive.getnames()}
         for name in members:
             module_file = re.fullmatch(r'server/[A-Za-z_][A-Za-z0-9_]*\.py', name) and name != 'server/host.py'
@@ -95,7 +99,7 @@ class ReleaseTests(unittest.TestCase):
             paths = sorted((root / 'server').glob('*.py')) + [root / 'web' / n for n in ('index.html', 'app.js', 'style.css')]
             paths += [root / 'rulesets/compiled.json', root / 'titledb/titles.json', root / 'titledb/UPSTREAM_LICENSE']
             buffer = io.BytesIO()
-            prefix = f'ps5-jb-server-{VERSION}/'
+            prefix = f'ps5-manage-{VERSION}/'
             with gzip.GzipFile(filename='', mode='wb', fileobj=buffer, mtime=0) as compressed:
                 with tarfile.open(fileobj=compressed, mode='w', format=tarfile.USTAR_FORMAT) as archive:
                     entries = [(p.relative_to(root).as_posix(), p.read_bytes()) for p in paths]

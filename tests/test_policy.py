@@ -1,4 +1,4 @@
-"""Policy tests: python3 -m unittest discover -s ps5-jb-server/tests -p test_policy.py."""
+"""Policy tests: python3 -m unittest discover -s tests -p test_policy.py."""
 import importlib.util
 import pathlib
 import unittest
@@ -382,3 +382,31 @@ class IncrementalLeaseTests(unittest.TestCase):
             raise subprocess.CalledProcessError(1, argv, stderr="No such file or directory")
         with self.assertRaises(subprocess.CalledProcessError):
             make_firewall(runner=broken).add_leases({"9.9.9.9": 30})
+
+
+class MergeRulesTests(unittest.TestCase):
+    def test_merge_domains_normalizes_dedups_and_collapses_siblings(self):
+        merged, summary = policy.merge_domains(
+            ["API.EXAMPLE.COM.", "example.com", "*.wildcard.test", "sub.wildcard.test"],
+            ["cdn.example.com", "wildcard.test", "MixedCase.Example.org."]
+        )
+        self.assertEqual(merged, ["*.example.com", "*.wildcard.test", "example.com", "mixedcase.example.org", "wildcard.test"])
+        self.assertIn("*.example.com", summary["merged_wildcards"])
+        self.assertIn("sub.wildcard.test", summary["covered"])
+
+    def test_merge_domains_protects_public_suffixes_and_shared_apexes(self):
+        merged, summary = policy.merge_domains(
+            ["a.co.uk", "gs2.playstation.net", "a.edge.cloudfront.net"],
+            ["b.co.uk", "manuals.playstation.net", "b.edge.cloudfront.net"]
+        )
+        self.assertEqual(summary["merged_wildcards"], ["*.edge.cloudfront.net"])
+        self.assertIn("a.co.uk", merged)
+        self.assertIn("b.co.uk", merged)
+        self.assertIn("gs2.playstation.net", merged)
+        self.assertIn("manuals.playstation.net", merged)
+
+    def test_merge_networks_subsumes_and_collapses(self):
+        merged, summary = policy.merge_networks(["192.0.2.0/25", "203.0.113.10/32"], ["192.0.2.128/25", "203.0.113.10"])
+        self.assertEqual(merged, ["192.0.2.0/24", "203.0.113.10/32"])
+        self.assertIn("192.0.2.0/24", summary["collapsed"])
+        self.assertEqual(summary["deduplicated"], ["203.0.113.10/32"])

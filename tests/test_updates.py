@@ -32,7 +32,7 @@ class UpdateTests(unittest.TestCase):
         self.data = self.root / 'data'
         self.payload = b'verified archive bytes'
         self.version = '1.5.0'
-        self.asset = f'ps5-jb-server-{self.version}.tar.gz'
+        self.asset = f'ps5-manage-{self.version}.tar.gz'
         self.base = f'https://github.com/wujiezero/ps5-manage/releases/download/v{self.version}/'
         self.release = {'tag_name': 'v1.5.0', 'draft': False, 'prerelease': False,
                         'html_url': 'https://github.com/wujiezero/ps5-manage/releases/tag/v1.5.0',
@@ -41,7 +41,7 @@ class UpdateTests(unittest.TestCase):
                             {'name': self.asset + '.sha256', 'browser_download_url': self.base + self.asset + '.sha256'}]}
         self.descriptor = {'schema': 1, 'program_dir': str(self.program), 'static_dir': str(self.program / 'web'),
                            'data_dir': str(self.data), 'config_path': str(self.root / 'config.toml'),
-                           'admin_unit': 'ps5-jb-server.service', 'repo_unit': 'ps5-jb-repo.service',
+                           'admin_unit': 'ps5-manage.service', 'repo_unit': 'ps5-manage-repo.service',
                            'health_url': 'https://127.0.0.1:8443/api/version'}
         (self.program / 'update-install.json').write_text(json.dumps(self.descriptor))
         self.calls = []
@@ -116,7 +116,7 @@ class UpdateTests(unittest.TestCase):
         self.assertEqual(len(self.launches), 1)
         spec = json.loads(Path(self.launches[0]).read_text())
         self.assertEqual(Path(spec['archive']).read_bytes(), self.payload)
-        self.assertEqual(spec['admin_unit'], 'ps5-jb-server.service')
+        self.assertEqual(spec['admin_unit'], 'ps5-manage.service')
         self.assertEqual(self.make_manager().status()['job']['version'], '1.5.0')
         with self.assertRaises(UpdateError):
             self.manager.apply('1.5.0')

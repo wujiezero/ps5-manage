@@ -1,4 +1,4 @@
-# PS5 管家（ps5-jb-server）
+# PS5 管家（ps5-manage）
 
 <img src="docs/ui/logo.svg" width="72" alt="PS5 管家">
 
@@ -41,7 +41,7 @@
 ```
                      ┌──────────────────────────── 家庭局域网 ─────────────────────────────┐
                      │                                                                     │
-  PS5 ── DNS 53 ────►│  ps5-jb-server（本机）                                              │
+  PS5 ── DNS 53 ────►│  ps5-manage（本机）                                                 │
       ── 默认网关 ──►│   ├─ DNS 策略：白名单域名 → 放行 / 其余 NXDOMAIN                    │
                      │   ├─ nftables：默认拒绝，只放行白名单目标（IPv4）                   │
       ◄─ HTTPS 443 ──┤   ├─ 用户手册站点（自签证书）                                      │
@@ -112,11 +112,11 @@ curl -fsSL https://raw.githubusercontent.com/wujiezero/ps5-manage/main/bootstrap
 
 # 或者
 git clone https://github.com/wujiezero/ps5-manage
-cd ps5-jb-server
+cd ps5-manage
 sudo ./install.sh
 ```
 
-安装完成后会打印管理地址与初始密码（同时写在 `/root/ps5-jb-server-access.txt`，权限 0600）。
+安装完成后会打印管理地址与初始密码（同时写在 `/root/ps5-manage-access.txt`，权限 0600）。
 
 常用参数：
 
@@ -184,8 +184,8 @@ PS5 的待机即休息模式（黄灯）：插件留在内存里，唤醒后不�
 
 ## 配置
 
-`/etc/ps5-jb-server/config.toml`，示例见 [`examples/config.toml`](examples/config.toml)。
-所有键都能用 `PS5JB_*` 环境变量覆盖（例如 `PS5JB_HOST_IP`、`PS5JB_PORT_ADMIN`、`PS5JB_MAX_UPLOAD`）。
+`/etc/ps5-manage/config.toml`，示例见 [`examples/config.toml`](examples/config.toml)。
+所有键都能用 `PS5_MANAGE_*`（也兼容 `PS5JB_*`）环境变量覆盖（例如 `PS5_MANAGE_HOST_IP`、`PS5_MANAGE_PORT_ADMIN`、`PS5_MANAGE_MAX_UPLOAD`）。
 
 | 段 | 键 | 说明 |
 | --- | --- | --- |
@@ -206,7 +206,7 @@ PS5 的待机即休息模式（黄灯）：插件留在内存里，唤醒后不�
 | `[paths]` | `secret_key` | NAS 账号加密密钥，默认与配置文件同目录的 `nas.key` |
 | `[ps5]` | `engine_url` | 唤醒/待机所用 PS5Upload 引擎地址，默认 `http://127.0.0.1:19113` |
 
-修改后 `systemctl restart ps5-jb-server` 生效。
+修改后 `systemctl restart ps5-manage` 生效。
 
 ## 插件与第三方组件
 
@@ -217,7 +217,7 @@ PS5 的待机即休息模式（黄灯）：插件留在内存里，唤醒后不�
   `ps5-payloads-mirror`），只有校验和一致的文件才会写进仓库；个别插件下载失败（网络、HTTP、校验和不符）
   只记录原因、不中断安装，结束时汇总成功与失败数量；
   仓库为空时会告警，重跑同一条命令即可补齐：
-  `python3 scripts/fetch_payloads.py --repo-dir /srv/ps5-jb-server --base-url http://<本机>:8080/payloads/`
+  `python3 scripts/fetch_payloads.py --repo-dir /srv/ps5-manage --base-url http://<本机>:8080/payloads/`
   （清单若使用相对地址，可加 `--download-base <镜像前缀>`）。
 - 用户手册宿主：上游 [itsPLK/ps5-webkit-autoloader](https://github.com/itsPLK/ps5-webkit-autoloader)
   v0.8.1（**GPL-3.0**）的 `host.py`，安装时按 `components.json` 下载并校验 SHA-256；
@@ -236,7 +236,7 @@ PS5 的待机即休息模式（黄灯）：插件留在内存里，唤醒后不�
 
 - 管理页只允许本机与配置网段的请求，登录后写操作需要 CSRF token；管理密码用 PBKDF2 存储，无默认密码。
 - 登录会话 30 天滑动续期：Cookie 为 `HttpOnly; Secure; SameSite=Lax`，服务端只存令牌哈希
-  （`/var/lib/ps5-jb-server/sessions.json`，0600），重启服务不会掉登录；登出或改密码立即失效。
+  （`/var/lib/ps5-manage/sessions.json`，0600），重启服务不会掉登录；登出或改密码立即失效。
 - **NAS 账号加密保存**：用户名和密码以 AES-256-GCM 加密后写入数据目录的 `nas.json`，
   每条密文绑定所属连接；密钥是配置目录下单独的 `nas.key`（0600），与数据目录分开存放，
   单独拿到数据目录或其备份无法解出账号。接口从不返回 NAS 密码。
@@ -253,14 +253,14 @@ PS5 的待机即休息模式（黄灯）：插件留在内存里，唤醒后不�
 ## 故障排查
 
 ```sh
-systemctl status ps5-jb-server ps5-jb-host ps5-jb-repo
-journalctl -u ps5-jb-server -n 100
+systemctl status ps5-manage ps5-manage-host ps5-manage-repo
+journalctl -u ps5-manage -n 100
 sudo ./install.sh doctor
 nft list table inet ps5guard         # 策略是否在
 dig @<本机> manuals.playstation.net  # 应返回本机地址
 ```
 
-- **PS5 打开用户手册仍是原页面**：确认 PS5 主 DNS 是本机地址，且 `ps5-jb-host` 在跑（443 端口）。
+- **PS5 打开用户手册仍是原页面**：确认 PS5 主 DNS 是本机地址，且 `ps5-manage-host` 在跑（443 端口）。
 - **策略不生效／PS5 完全连不上网**：确认 PS5 默认网关是本机地址；`nft list table inet ps5guard` 有规则；
   日志里是否有“网关初始化失败”（失败时服务会关闭转发并保留管理页用于排查）。
 - **网络活动为空**：只改 DNS 不会产生连接记录，必须同时把网关指向本机。

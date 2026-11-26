@@ -333,7 +333,7 @@ python3 scripts/build_titles.py --ref <commit>  # 固定某个上游版本
 下载走 `HTTPS_PROXY`；若只能用 SOCKS 代理，先用 `curl --socks5-hostname <代理> -O` 下载上游的
 `All_Titles.tsv` 与 `LICENSE` 到一个目录，再 `python3 scripts/build_titles.py --source <目录>`。
 生成后跑 `python3 -m unittest tests.test_titles` 并提交 `titledb/`。部署时把 `titledb/titles.json`
-放到 `[paths] titles`（默认 `/opt/ps5-jb-server/titledb/titles.json`）；未配置时也会找
+放到 `[paths] titles`（默认 `/opt/ps5-manage/titledb/titles.json`）；未配置时也会找
 `server/` 同级的 `titledb/` 或程序同目录的 `titles.json`（旧的平铺 `/opt/ps5-manager` 布局）。
 
 ## 依赖
