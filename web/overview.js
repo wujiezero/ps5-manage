@@ -199,7 +199,7 @@ function renderState(data, forceConfig = false) {
 /* ── 概览：PS5 遥测卡片 & 主机开放 ELF 端口卡片 ────────────────────────── */
 
 let overviewSelectedHost = '';
-let overviewTelemetryTimer = null;
+let overviewServicesScannedHost = '';
 let overviewTelemetryBusy = false;
 let overviewServicesBusy = false;
 let overviewTelemetryAt = 0;
@@ -493,6 +493,7 @@ async function refreshOverviewServices({ force = false, quiet = true } = {}) {
     const data = await api(`/api/ps5/services?${query}`, undefined, 12000);
     if (requestEpoch !== epoch) return false;
     overviewServicesAt = Date.now();
+    if (ip && !data.skipped_busy) overviewServicesScannedHost = ip;
     renderOverviewServices(data);
     if (!quiet) toast(`端口扫描完成，发现 ${(data.services || []).length} 个开放服务。`, 'success');
     return true;
@@ -507,12 +508,21 @@ async function refreshOverviewServices({ force = false, quiet = true } = {}) {
   }
 }
 
+function hasActiveConsoleTransfer() {
+  const activeStates = new Set(['queued', 'running', 'retrying', 'preparing', 'transferring', 'extracting', 'installing']);
+  if (files.uploading || files.jobActive) return true;
+  if (Array.isArray(files.transfers) && files.transfers.some((job) => job && activeStates.has(str(job.state)))) return true;
+  if (Array.isArray(nasJobs) && nasJobs.some((job) => job && activeStates.has(str(job.state)))) return true;
+  return false;
+}
+
 function maybeRefreshOverviewExtras({ force = false } = {}) {
   if (!authenticated || currentSection !== 'overview') return;
-  syncOverviewHostSelect();
+  const host = syncOverviewHostSelect();
+  if (!force && hasActiveConsoleTransfer()) return;
   const now = Date.now();
-  if (force || now - overviewTelemetryAt > 5000) refreshOverviewTelemetry({ force });
-  if (force || now - overviewServicesAt > 25000) refreshOverviewServices({ force });
+  if (force || now - overviewTelemetryAt > 12000) refreshOverviewTelemetry({ force });
+  if (force || (host && overviewServicesScannedHost !== host)) refreshOverviewServices({ force });
 }
 
 function renderBuiltinDomains(localDomains, hostIp) {

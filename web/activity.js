@@ -2,6 +2,13 @@
 
 /* ── 网络活动 ───────────────────────────────────────────────────────── */
 
+function isAllowableDomain(value) {
+  const text = str(value).replace(/\.+$/, '');
+  if (!text || /\s/.test(text) || !text.includes('.') || ipv4(text)) return false;
+  const labels = text.split('.');
+  return labels.length >= 2 && labels.every((part) => Boolean(part) && !part.startsWith('-') && !part.endsWith('-'));
+}
+
 function normalizeActivity(data) {
   const events = [];
   const list = Array.isArray(data && data.events) ? data.events : [];
@@ -12,12 +19,14 @@ function normalizeActivity(data) {
     const target = str(entry.target) || (domain ? `domain:${domain}` : dst ? `ip:${dst}` : '');
     const port = Number(entry.port);
     const kind = ['flow', 'service', 'dns'].includes(str(entry.kind)) ? str(entry.kind) : 'flow';
+    const targetAllowable = Boolean(target) && (
+      target.startsWith('ip:') || (target.startsWith('domain:') && isAllowableDomain(target.slice(7)))
+    );
     events.push({
       target,
       kind,
-      // Service rows are terminal observations, not whitelist targets; rows
-      // already covered by the current whitelist need no second approval.
-      selectable: kind !== 'service' && Boolean(target) && entry.allowed_now !== true,
+      // Service rows, local hijack rows, and non-FQDN names (e.g. "file") cannot be whitelisted.
+      selectable: kind !== 'service' && entry.local !== true && targetAllowable && entry.allowed_now !== true,
       time: str(entry.time),
       client: str(entry.client),
       dst,
@@ -85,9 +94,11 @@ function activityDescribe(event) {
 
 function activityAllowTarget(event) {
   if (!event || event.kind === 'service' || event.local) return '';
-  if (event.domain) return `domain:${event.domain}`;
+  if (event.domain && isAllowableDomain(event.domain)) return `domain:${event.domain}`;
   if (event.dst) return `ip:${event.dst}`;
-  return event.target && !event.target.startsWith('service:') ? event.target : '';
+  if (event.target && event.target.startsWith('ip:')) return event.target;
+  if (event.target && event.target.startsWith('domain:') && isAllowableDomain(event.target.slice(7))) return event.target;
+  return '';
 }
 
 function formatAllowToast(label, result) {
@@ -225,6 +236,8 @@ function activityRow(event) {
   const allowTarget = activityAllowTarget(event);
   if (event.kind === 'service' || event.local) {
     actionCell.append(makeElement('span', 'activity-action-muted', event.local ? '内置域名' : '本机服务'));
+  } else if (event.domain && !isAllowableDomain(event.domain) && !event.dst) {
+    actionCell.append(makeElement('span', 'activity-action-muted', '非标准域名'));
   } else if (event.allowedNow === true) {
     actionCell.append(makeElement('span', 'activity-action-done', '已放行'));
   } else if (allowTarget) {
@@ -744,7 +757,8 @@ function statsTarget(item, allowable) {
   if (item.allowed_now && allowable) meta.push('已放行（现在）');
   main.append(makeElement('span', 'stats-item-meta', meta.join(' · ')));
   node.append(main);
-  if (allowable && !item.allowed_now && ['domain', 'ip'].includes(kind)) {
+  const canAllow = kind === 'ip' || (kind === 'domain' && isAllowableDomain(rest.join(':')));
+  if (allowable && !item.allowed_now && canAllow) {
     const button = makeElement('button', 'button button-secondary button-small', '放行');
     button.type = 'button';
     button.addEventListener('click', () => allowStatsTarget(str(item.target), button));

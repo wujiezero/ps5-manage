@@ -227,12 +227,24 @@ class ConsoleAPI:
         known = list(self.ps5.discovery.known)
         return known[0] if known else ''
 
+    _TERMINAL_STATES = frozenset(('done', 'done_with_warnings', 'failed', 'fail', 'canceled', 'cancelled', 'idle'))
+
+    def _transfer_busy(self):
+        return any(job.get('state') not in self._TERMINAL_STATES for job in self.transfers.snapshot())
+
     def _get_ps5_services(self, handler):
         ip = self._primary_host(self._arg(handler, 'ip'))
         if not ip:
             handler.send_body(200, {'host': '', 'online': False, 'services': [], 'scanned_ports': 0, 'cached': False})
             return
         force = self._arg(handler, 'force') in ('1', 'true', 'yes')
+        if not force and self._transfer_busy():
+            with self.port_scanner.lock:
+                cached = self.port_scanner.cache.get(ip)
+            payload = dict(cached['data']) if cached else {'host': ip, 'online': False, 'services': [], 'scanned_ports': 0}
+            payload.update(cached=True, skipped_busy=True)
+            handler.send_body(200, payload)
+            return
         handler.send_body(200, self.port_scanner.scan(ip, force=force))
 
     def _get_ps5_telemetry(self, handler):
@@ -242,6 +254,16 @@ class ConsoleAPI:
                                     'cpu': {}, 'memory': {}, 'volumes': [], 'game': {'running': False}})
             return
         force = self._arg(handler, 'force') in ('1', 'true', 'yes')
+        if not force and self._transfer_busy():
+            with self.telemetry.lock:
+                cached = self.telemetry.cache.get(ip)
+            payload = dict(cached['data']) if cached else {
+                'host': ip, 'engine_available': True, 'has_hw': False,
+                'cpu': {}, 'memory': {}, 'volumes': [], 'game': {'running': False},
+            }
+            payload.update(cached=True, skipped_busy=True)
+            handler.send_body(200, payload)
+            return
         power_info = None
         for host in self.ps5.discovery.snapshot().get('hosts') or []:
             if host.get('ip') == ip:

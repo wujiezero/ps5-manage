@@ -71,8 +71,8 @@ function fixture(extra = {}) {
   assert.ok(startup > 0, 'browser module startup must be identifiable');
   const exposed = `${source.slice(0, startup)}
     globalThis.subject = { activity, repo, activitySelected, activityVisibleEvents,
-      normalizeActivity, applyActivity, activityRow, activityAllowTarget, formatAllowToast, renderBuiltinDomains,
-      renderOverviewServices, renderOverviewTelemetry,
+      normalizeActivity, applyActivity, activityRow, activityAllowTarget, isAllowableDomain, formatAllowToast, renderBuiltinDomains,
+      renderOverviewServices, renderOverviewTelemetry, hasActiveConsoleTransfer, maybeRefreshOverviewExtras,
       setActivityFilter, renderRepo, renderPs5Catalog,
       files, filesRow, nasRow, filesVisibleEntries, titleIdOf, titleNames, flushTitleNames, normalizeFilesEntries,
       nas, nasArchiveSelection, extractTask, packageTask, filesTransferTasks, filesTransferCard, normalizePs5,
@@ -1080,4 +1080,39 @@ test('overview telemetry cards render cpu, memory, storage thresholds and game f
   assert.equal(ui.node('telemetry-fps-val').textContent, '40');
   assert.equal(ui.node('telemetry-game-name').textContent, '羊蹄山之魂');
   assert.match(textOf(ui.node('overview-storage-list')), /95\.9%/);
+});
+
+test('non-standard single-label DNS names like file are non-selectable and marked 非标准域名', () => {
+  const ui = fixture();
+  assert.equal(ui.isAllowableDomain('file'), false);
+  assert.equal(ui.isAllowableDomain('example.com'), true);
+  ui.applyActivity(ui.normalizeActivity({ events: [
+    { kind: 'dns', domain: 'file', verdict: 'blocked', allowed_now: false },
+    { kind: 'flow', domain: 'file', dst: '203.0.113.5', verdict: 'blocked', allowed_now: false }
+  ] }));
+  assert.equal(ui.activity.events[0].selectable, false);
+  assert.equal(ui.activityAllowTarget(ui.activity.events[0]), '');
+  assert.equal(ui.activityAllowTarget(ui.activity.events[1]), 'ip:203.0.113.5');
+  const rows = ui.node('activity-body').children;
+  assert.equal(rows[0].children[9].children[0].textContent, '非标准域名');
+  assert.equal(rows[1].children[9].children[0].textContent, '放行');
+
+  ui.actHistory.stats = { days: 7, rows: 1, per_day: [{ day: '2026-11-26', allowed: 0, blocked: 1 }],
+    top_blocked: [{ target: 'domain:file', hits: 3, clients: 1, last: 1, name: '', category: '未识别', allowed_now: false }],
+    top_allowed: [], clients: [] };
+  ui.renderStats();
+  const blocked = ui.node('stats-top-blocked').children;
+  assert.doesNotMatch(textOf(blocked[0]), /放行$/);
+});
+
+test('hasActiveConsoleTransfer pauses overview auto probes during uploads or NAS transfers', () => {
+  const ui = fixture();
+  assert.equal(ui.hasActiveConsoleTransfer(), false);
+  ui.files.uploading = true;
+  assert.equal(ui.hasActiveConsoleTransfer(), true);
+  ui.files.uploading = false;
+  ui.setNasJobs([{ id: 'j1', state: 'transferring' }]);
+  assert.equal(ui.hasActiveConsoleTransfer(), true);
+  ui.setNasJobs([{ id: 'j1', state: 'done' }]);
+  assert.equal(ui.hasActiveConsoleTransfer(), false);
 });

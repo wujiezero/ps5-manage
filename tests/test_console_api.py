@@ -154,6 +154,20 @@ class ConsoleAPITests(unittest.TestCase):
         self.assertEqual(handler.status, 200)
         self.assertEqual(handler.payload['hosts'][0]['ip'], '127.0.0.1')
 
+    def test_overview_services_and_telemetry_skip_when_transfer_busy(self):
+        with (mock.patch.object(self.api, '_primary_host', return_value='192.0.2.5'),
+              mock.patch.object(self.api.transfers, 'snapshot', return_value=[{'state': 'transferring'}]),
+              mock.patch.object(self.api.port_scanner, 'scan', side_effect=AssertionError('must skip')),
+              mock.patch.object(self.api.telemetry, 'collect', side_effect=AssertionError('must skip'))):
+            h1 = StubHandler('/api/ps5/services')
+            self.api.handle_get(h1)
+            self.assertEqual(h1.status, 200)
+            self.assertTrue(h1.payload['skipped_busy'])
+            h2 = StubHandler('/api/ps5/telemetry')
+            self.api.handle_get(h2)
+            self.assertEqual(h2.status, 200)
+            self.assertTrue(h2.payload['skipped_busy'])
+
     def test_ps5_install_unknown_payload(self):
         body, headers = json_body({'ip': '127.0.0.1', 'filename': 'nope.elf'})
         handler = StubHandler('/api/ps5/install', body, headers)
